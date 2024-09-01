@@ -1,6 +1,5 @@
 (use-modules (gnu packages)
              ((gnu packages bash) #:select (bash-minimal))
-             ((gnu packages certs) #:select (nss-certs))
              ((gnu packages check) #:select (libfaketime))
              ((gnu packages cmake) #:select (cmake-minimal))
              (gnu packages commencement)
@@ -17,7 +16,7 @@
              ((gnu packages python-build) #:select (python-poetry-core))
              ((gnu packages python-crypto) #:select (python-asn1crypto))
              ((gnu packages python-science) #:select (python-scikit-build-core))
-             ((gnu packages python-xyz) #:select (python-pydantic-2 python-pydantic-core))
+             ((gnu packages python-xyz) #:select (python-pydantic))
              ((gnu packages tls) #:select (openssl))
              ((gnu packages version-control) #:select (git-minimal))
              (guix build-system cmake)
@@ -92,17 +91,7 @@ chain for " target " development."))
       (home-page (package-home-page xgcc))
       (license (package-license xgcc)))))
 
-(define base-gcc
-  (package
-    (inherit gcc-14) ;; 14.2.0
-    (version "14.3.0")
-    (source (origin
-              (method url-fetch)
-              (uri (string-append "mirror://gnu/gcc/gcc-"
-                                  version "/gcc-" version ".tar.xz"))
-              (sha256
-               (base32
-                "0fna78ly417g69fdm4i5f3ms96g8xzzjza8gwp41lqr5fqlpgp70"))))))
+(define base-gcc gcc-14)
 
 (define base-linux-kernel-headers linux-libre-headers-6.1)
 
@@ -188,8 +177,7 @@ chain for " target " development."))
     (native-inputs (list cmake-minimal
                          ninja
                          python-scikit-build-core
-                         python-pydantic-core
-                         python-pydantic-2))
+                         python-pydantic))
     (arguments
      (list
       #:tests? #f                  ;needs network
@@ -577,7 +565,7 @@ inspecting signatures in Mach-O binaries.")
         gnu-make
         ninja
         ;; Scripting
-        python-minimal ;; (3.10)
+        python-minimal ;; (3.11)
         ;; Git
         git-minimal
         ;; Tests
@@ -587,15 +575,14 @@ inspecting signatures in Mach-O binaries.")
            (list zip
                  (make-mingw-pthreads-cross-toolchain "x86_64-w64-mingw32")
                  nsis-x86_64
-                 nss-certs
                  osslsigncode))
           ((string-contains target "-linux-")
            (list (list gcc-toolchain-14 "static")
                  (make-bitcoin-cross-toolchain target)))
           ((string-contains target "darwin")
-           (list clang-toolchain-18
-                 lld-18
-                 (make-lld-wrapper lld-18 #:lld-as-ld? #t)
+           (list clang-toolchain-19
+                 lld-19
+                 (make-lld-wrapper lld-19 #:lld-as-ld? #t)
                  python-signapple
                  zip))
           (else '())))))
