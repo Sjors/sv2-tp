@@ -90,7 +90,7 @@ global_task_template: &GLOBAL_TASK_TEMPLATE
 compute_credits_template: &CREDITS_TEMPLATE
   # https://cirrus-ci.org/pricing/#compute-credits
   # Only use credits for pull requests to the main repo
-  use_compute_credits: $CIRRUS_REPO_FULL_NAME == 'bitcoin/bitcoin' && $CIRRUS_PR != ""
+  use_compute_credits: $CIRRUS_REPO_FULL_NAME == 'Sjors/sv2-tp' && $CIRRUS_PR != ""
 
 task:
   name: 'lint'
