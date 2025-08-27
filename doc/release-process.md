@@ -1,13 +1,15 @@
 Release Process
 ====================
 
+Note: I'm only following small subset of this process at the moment and there
+are still references to Bitcoin Core.
+
 ## Branch updates
 
 ### Before every release candidate
 
 * Update release candidate version in `CMakeLists.txt` (`CLIENT_VERSION_RC`).
 * Update manpages (after rebuilding the binaries), see [gen-manpages.py](/contrib/devtools/README.md#gen-manpagespy).
-* Update bitcoin.conf and commit changes if they exist, see [gen-bitcoin-conf.sh](/contrib/devtools/README.md#gen-bitcoin-confsh).
 
 ### Before every major and minor release
 
@@ -40,7 +42,6 @@ Release Process
 
 #### Before final release
 
-- Merge the release notes from [the wiki](https://github.com/bitcoin-core/bitcoin-devwiki/wiki/) into the branch.
 - Ensure the "Needs release note" label is removed from all relevant pull
   requests and issues:
   https://github.com/bitcoin/bitcoin/issues?q=label%3A%22Needs+release+note%22
@@ -63,13 +64,13 @@ Install Guix using one of the installation methods detailed in
 Check out the source code in the following directory hierarchy.
 
     cd /path/to/your/toplevel/build
-    git clone https://github.com/bitcoin-core/guix.sigs.git
-    git clone https://github.com/bitcoin-core/bitcoin-detached-sigs.git
+    git clone https://github.com/sjors/sv2-tp-guix.sigs.git
+    git clone https://github.com/sjors/sv2-tp-detached-sigs.git
     git clone https://github.com/sjors/sv2-tp.git
 
 ### Write the release notes
 
-Open a draft of the release notes for collaborative editing at https://github.com/bitcoin-core/bitcoin-devwiki/wiki.
+Open a draft of the release notes for collaborative editing at TBD.
 
 For the period during which the notes are being edited on the wiki, the version on the branch should be wiped and replaced with a link to the wiki which should be used for all announcements until `-final`.
 
@@ -79,7 +80,7 @@ Generate list of authors:
 
 ### Setup and perform Guix builds
 
-Checkout the Bitcoin Core version you'd like to build:
+Checkout the Template Provider version you'd like to build:
 
 ```sh
 pushd ./bitcoin
@@ -200,7 +201,7 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 ```
 
 
-- Upload to the bitcoincore.org server:
+- Upload to Github release:
     1. The contents of each `./bitcoin/guix-build-${VERSION}/output/${HOST}/` directory.
 
        Guix will output all of the results into host subdirectories, but the SHA256SUMS
@@ -214,80 +215,20 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 
     3. The `SHA256SUMS.asc` combined signature file you just created.
 
-- After uploading release candidate binaries, notify the bitcoin-core-dev mailing list and
-  bitcoin-dev group that a release candidate is available for testing. Include a link to the release
-  notes draft.
-
-- The server will automatically create an OpenTimestamps file and torrent of the directory.
-
-- Optionally help seed this torrent. To get the `magnet:` URI use:
-
-  ```sh
-  transmission-show -m <torrent file>
-  ```
-
-  Insert the magnet URI into the announcement sent to mailing lists. This permits
-  people without access to `bitcoincore.org` to download the binary distribution.
-  Also put it into the `optional_magnetlink:` slot in the YAML file for
-  bitcoincore.org.
-
 - Archive the release notes for the new version to `doc/release-notes/release-notes-${VERSION}.md`
   (branch `master` and branch of the release).
 
-- Update the bitcoincore.org website
-
-  - blog post
-
-  - maintained versions [table](https://github.com/bitcoin-core/bitcoincore.org/commits/master/_includes/posts/maintenance-table.md)
-
-  - RPC documentation update
-
-      - See https://github.com/bitcoin-core/bitcoincore.org/blob/master/contrib/doc-gen/
-
-
 - Update repositories
 
-  - Delete post-EOL [release branches](https://github.com/bitcoin/bitcoin/branches/all) and create a tag `v${branch_name}-final`.
+  - Delete post-EOL [release branches](https://github.com/sjors/sv2-tp/branches/all) and create a tag `v${branch_name}-final`.
 
-  - Delete ["Needs backport" labels](https://github.com/bitcoin/bitcoin/labels?q=backport) for non-existing branches.
-
-  - Update packaging repo
-
-      - Push the flatpak to flathub, e.g. https://github.com/flathub/org.bitcoincore.bitcoin-qt/pull/2
-
-      - Push the snap, see https://github.com/bitcoin-core/packaging/blob/main/snap/local/build.md
-
-  - Create a [new GitHub release](https://github.com/bitcoin/bitcoin/releases/new) with a link to the archived release notes
+  - Create a [new GitHub release](https://github.com/sjors/sv2-tp/releases/new) with a link to the archived release notes
 
 - Announce the release:
 
-  - bitcoin-dev and bitcoin-core-dev mailing list
+  - SRI Discord
 
-  - Bitcoin Core announcements list https://bitcoincore.org/en/list/announcements/join/
-
-  - Bitcoin Core Twitter https://twitter.com/bitcoincoreorg
+  - bitcoin-dev mailing list
 
   - Celebrate
 
-### Additional information
-
-#### <a name="how-to-calculate-assumed-blockchain-and-chain-state-size"></a>How to calculate `m_assumed_blockchain_size` and `m_assumed_chain_state_size`
-
-Both variables are used as a guideline for how much space the user needs on their drive in total, not just strictly for the blockchain.
-Note that all values should be taken from a **fully synced** node and have an overhead of 5-10% added on top of its base value.
-
-To calculate `m_assumed_blockchain_size`, take the size in GiB of these directories:
-- For `mainnet` -> the data directory, excluding the `/testnet3`, `/testnet4`, `/signet`, and `/regtest` directories and any overly large files, e.g. a huge `debug.log`
-- For `testnet` -> `/testnet3`
-- For `testnet4` -> `/testnet4`
-- For `signet` -> `/signet`
-
-To calculate `m_assumed_chain_state_size`, take the size in GiB of these directories:
-- For `mainnet` -> `/chainstate`
-- For `testnet` -> `/testnet3/chainstate`
-- For `testnet4` -> `/testnet4/chainstate`
-- For `signet` -> `/signet/chainstate`
-
-Notes:
-- When taking the size for `m_assumed_blockchain_size`, there's no need to exclude the `/chainstate` directory since it's a guideline value and an overhead will be added anyway.
-- The expected overhead for growth may change over time. Consider whether the percentage needs to be changed in response; if so, update it here in this section.
