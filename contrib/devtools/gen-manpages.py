@@ -9,10 +9,7 @@ import tempfile
 import argparse
 
 BINARIES = [
-'bin/bitcoind',
-'bin/bitcoin-cli',
 'bin/sv2-tp',
-'bin/bitcoin-util',
 ]
 
 parser = argparse.ArgumentParser(
