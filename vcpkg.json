@@ -1,0 +1,20 @@
+{
+  "$comment": "The builtin-baseline corresponds to 2025.03.19 Release",
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "builtin-baseline": "b02e341c927f16d991edbd915d8ea43eac52096c",
+  "dependencies": [
+    "boost-multi-index",
+    "boost-signals2"
+  ],
+  "default-features": [
+    "tests"
+  ],
+  "features": {
+    "tests": {
+      "description": "Build test_sv2.exe executable",
+      "dependencies": [
+        "boost-test"
+      ]
+    }
+  }
+}

@@ -1,0 +1,237 @@
+# Copyright (c) 2023-present The Bitcoin Core developers
+# Distributed under the MIT software license, see the accompanying
+# file COPYING or https://opensource.org/license/mit/.
+
+include(AddWindowsResources)
+
+configure_file(${PROJECT_SOURCE_DIR}/cmake/bitcoin-build-config.h.in bitcoin-build-config.h USE_SOURCE_PERMISSIONS @ONLY)
+include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+
+#=============================
+# Subprojects
+#=============================
+# Subprojects include subdirectories that do or could have tests
+# and/or benchmark binaries, such as all subtrees and univalue.
+# These need to be included before CMAKE_*_OUTPUT_DIRECTORY variables
+# are set, so output locations of subproject tests and libraries are
+# not overridden.
+include(../cmake/crc32c.cmake)
+include(../cmake/leveldb.cmake)
+add_subdirectory(univalue)
+if (NOT WITH_EXTERNAL_LIBMULTIPROCESS)
+  include(../cmake/libmultiprocess.cmake)
+  add_libmultiprocess(ipc/libmultiprocess)
+endif()
+include(../cmake/secp256k1.cmake)
+add_secp256k1(secp256k1)
+
+# Set top-level target output locations.
+if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
+endif()
+if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+endif()
+if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
+endif()
+
+add_custom_target(generate_build_info
+  BYPRODUCTS ${PROJECT_BINARY_DIR}/src/bitcoin-build-info.h
+  COMMAND ${CMAKE_COMMAND} -DBUILD_INFO_HEADER_PATH=${PROJECT_BINARY_DIR}/src/bitcoin-build-info.h -DSOURCE_DIR=${PROJECT_SOURCE_DIR} -P ${PROJECT_SOURCE_DIR}/cmake/script/GenerateBuildInfo.cmake
+  COMMENT "Generating bitcoin-build-info.h"
+  VERBATIM
+)
+add_library(bitcoin_clientversion STATIC EXCLUDE_FROM_ALL
+  clientversion.cpp
+)
+target_link_libraries(bitcoin_clientversion
+  PRIVATE
+    core_interface
+)
+add_dependencies(bitcoin_clientversion generate_build_info)
+
+add_subdirectory(crypto)
+add_subdirectory(util)
+add_subdirectory(ipc)
+add_subdirectory(sv2)
+
+add_library(bitcoin_consensus STATIC EXCLUDE_FROM_ALL
+  arith_uint256.cpp
+  consensus/merkle.cpp
+  consensus/tx_check.cpp
+  hash.cpp
+  primitives/block.cpp
+  primitives/transaction.cpp
+  pubkey.cpp
+  script/interpreter.cpp
+  script/script.cpp
+  script/script_error.cpp
+  uint256.cpp
+)
+target_link_libraries(bitcoin_consensus
+  PRIVATE
+    core_interface
+    bitcoin_crypto
+    secp256k1
+)
+
+# Home for common functionality shared by different executables and libraries.
+# Similar to `bitcoin_util` library, but higher-level.
+add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL
+  addresstype.cpp
+  base58.cpp
+  bech32.cpp
+  chain.cpp
+  chainparams.cpp
+  chainparamsbase.cpp
+  coins.cpp
+  common/args.cpp
+  common/bloom.cpp
+  common/config.cpp
+  common/init.cpp
+  common/interfaces.cpp
+  common/messages.cpp
+  common/netif.cpp
+  common/settings.cpp
+  common/sockman.cpp
+  common/system.cpp
+  compressor.cpp
+  core_read.cpp
+  core_write.cpp
+  deploymentinfo.cpp
+  init/common.cpp
+  kernel/chainparams.cpp
+  key.cpp
+  key_io.cpp
+  merkleblock.cpp
+  musig.cpp
+  net_types.cpp
+  netaddress.cpp
+  netbase.cpp
+  node/interface_ui.cpp
+  outputtype.cpp
+  policy/feerate.cpp
+  policy/policy.cpp
+  pow.cpp
+  scheduler.cpp
+  script/descriptor.cpp
+  script/miniscript.cpp
+  script/parsing.cpp
+  script/sign.cpp
+  script/signingprovider.cpp
+  script/solver.cpp
+)
+target_link_libraries(bitcoin_common
+  PRIVATE
+    core_interface
+    bitcoin_consensus
+    bitcoin_util
+    univalue
+    secp256k1
+    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:USDT::headers>
+    $<$<PLATFORM_ID:Windows>:ws2_32>
+)
+
+include(InstallBinaryComponent)
+
+
+# Only used by the tests
+add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL
+  bip324.cpp
+  blockencodings.cpp
+  blockfilter.cpp
+  consensus/tx_verify.cpp
+  dbwrapper.cpp
+  deploymentstatus.cpp
+  flatfile.cpp
+  headerssync.cpp
+  init.cpp
+  kernel/chain.cpp
+  kernel/checks.cpp
+  kernel/coinstats.cpp
+  kernel/context.cpp
+  kernel/cs_main.cpp
+  kernel/disconnected_transactions.cpp
+  kernel/mempool_removal_reason.cpp
+  net.cpp
+  node/abort.cpp
+  node/blockmanager_args.cpp
+  node/blockstorage.cpp
+  node/caches.cpp
+  node/chainstate.cpp
+  node/chainstatemanager_args.cpp
+  node/coin.cpp
+  node/coins_view_args.cpp
+  node/connection_types.cpp
+  node/context.cpp
+  node/database_args.cpp
+  node/interfaces.cpp
+  node/kernel_notifications.cpp
+  node/mempool_args.cpp
+  node/mempool_persist.cpp
+  node/mempool_persist_args.cpp
+  node/miner.cpp
+  node/mini_miner.cpp
+  node/timeoffsets.cpp
+  node/transaction.cpp
+  node/warnings.cpp
+  noui.cpp
+  policy/ephemeral_policy.cpp
+  policy/fees.cpp
+  policy/fees_args.cpp
+  policy/packages.cpp
+  policy/rbf.cpp
+  policy/settings.cpp
+  policy/truc_policy.cpp
+  script/sigcache.cpp
+  signet.cpp
+  txdb.cpp
+  txgraph.cpp
+  txmempool.cpp
+  txrequest.cpp
+  validation.cpp
+  validationinterface.cpp
+  versionbits.cpp
+)
+target_link_libraries(bitcoin_node
+  PRIVATE
+    core_interface
+    bitcoin_common
+    bitcoin_util
+    leveldb
+    univalue
+    Boost::headers
+    $<TARGET_NAME_IF_EXISTS:USDT::headers>
+)
+
+if(BUILD_MINE)
+  add_executable(sv2-tp
+    sv2-tp.cpp
+    init/basic.cpp
+  )
+  add_windows_resources(sv2-tp sv2-tp-res.rc)
+  add_windows_application_manifest(sv2-tp)
+  target_link_libraries(sv2-tp
+    core_interface
+    bitcoin_common
+    bitcoin_ipc
+    bitcoin_sv2
+  )
+  install_binary_component(sv2-tp HAS_MANPAGE)
+endif()
+
+if(BUILD_KERNEL_LIB)
+  add_subdirectory(kernel)
+endif()
+
+add_subdirectory(test/util)
+
+if(BUILD_TESTS)
+  add_subdirectory(test)
+endif()
+
+if(BUILD_FUZZ_BINARY)
+  add_subdirectory(test/fuzz)
+endif()
