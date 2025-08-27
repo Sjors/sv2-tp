@@ -6,6 +6,11 @@ releases.
 
 Windows support is coming soon(tm). See https://github.com/bitcoin/bitcoin/pull/32387
 
+The Stratum v2 spec is documented here: https://stratumprotocol.org/specification
+
+For a general overview and how to get started, including the role of this repo,
+see https://stratumprotocol.org/developers.
+
 Compile
 ------------------------
 
@@ -33,6 +38,12 @@ build/bin/sv2-tp -debug=sv2 -loglevel=sv2:trace
 ```
 
 (for the installed version you don't need `build/bin/`)
+
+Now connect on of the other Stratum v2 roles to the Template Provider, such
+as the Job Declarator Client or (e.g. for solo mining) the Pool role. You'll
+need to provide the [Auhority Key]() which `sv2-tp` prints in the log.
+
+See https://github.com/stratum-mining/stratum.
 
 
 Relation to Bitcoin Core
