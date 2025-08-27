@@ -17,7 +17,7 @@ To build dependencies for the current arch+OS:
 ### macOS
 
 Install Xcode Command Line Tools and Homebrew Package Manager,
-see [build-osx.md](../doc/build-osx.md).
+see [build-macos.md](../doc/build-macos.md).
 
     brew install cmake make ninja
 
