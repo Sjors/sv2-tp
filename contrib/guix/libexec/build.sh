@@ -361,7 +361,19 @@ mkdir -p "$DISTSRC"
             )
             ;;
         *darwin*)
-            # Don't create desktop zip
+            mkdir -p "unsigned-app-${HOST}"
+            cp  --target-directory="unsigned-app-${HOST}" \
+                contrib/macdeploy/detached-sig-create.sh
+            cp -r --target-directory="unsigned-app-${HOST}" "${INSTALLPATH}"
+            (
+                cd "unsigned-app-${HOST}"
+                find . -print0 \
+                    | sort --zero-terminated \
+                    | tar --create --no-recursion --mode='u+rw,go+r-w,a+X' --null --files-from=- \
+                    | gzip -9n > "${OUTDIR}/${DISTNAME}-${HOST}-codesigning.tar.gz" \
+                    || ( rm -f "${OUTDIR}/${DISTNAME}-${HOST}-codesigning.tar.gz" && exit 1 )
+            )
+            ;;
     esac
 )  # $DISTSRC
 

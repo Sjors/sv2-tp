@@ -114,14 +114,6 @@ mkdir -p "$DISTSRC"
                 signapple apply "${bin}" "codesignatures/osx/${HOST}/${bin}.${ARCH}sign"
             done
 
-            # Make a .zip from dist/
-            cd dist/
-            find . -print0 \
-                | xargs -0r touch --no-dereference --date="@${SOURCE_DATE_EPOCH}"
-            find . | sort \
-                | zip -X@ "${OUTDIR}/${DISTNAME}-${HOST}.zip"
-            cd ..
-
             # Make a .tar.gz from bins
             find "${DISTNAME}" -print0 \
                 | sort --zero-terminated \
