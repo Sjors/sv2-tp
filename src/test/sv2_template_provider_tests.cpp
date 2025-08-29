@@ -18,6 +18,8 @@
 
 BOOST_FIXTURE_TEST_SUITE(sv2_template_provider_tests, TestChain100Setup)
 
+static constexpr size_t SV2_NEW_TEMPLATE_MESSAGE_SIZE{91};
+
 /**
   * A class for testing the Template Provider. Each TPTester encapsulates a
   * Sv2TemplateProvider (the one being tested) as well as a Sv2Cipher
@@ -167,7 +169,7 @@ BOOST_AUTO_TEST_CASE(client_tests)
     node::Sv2NetMsg msg{node::Sv2MsgType::COINBASE_OUTPUT_CONSTRAINTS, std::move(coinbase_output_constraint_bytes)};
     tester.receiveMessage(msg);
     BOOST_TEST_MESSAGE("The reply should be NewTemplate and SetNewPrevHash");
-    BOOST_REQUIRE_EQUAL(tester.PeerReceiveBytes(), 2 * SV2_HEADER_ENCRYPTED_SIZE + 91 + 80 + 2 * Poly1305::TAGLEN);
+    BOOST_REQUIRE_EQUAL(tester.PeerReceiveBytes(), 2 * SV2_HEADER_ENCRYPTED_SIZE + SV2_NEW_TEMPLATE_MESSAGE_SIZE + 80 + 2 * Poly1305::TAGLEN);
 
     // There should now be one template
     BOOST_REQUIRE_EQUAL(tester.GetBlockTemplateCount(), 1);
@@ -208,7 +210,7 @@ BOOST_AUTO_TEST_CASE(client_tests)
 
     // Expect our peer to receive a NewTemplate message
     // This time it should contain the 32 byte prevhash (unchanged)
-    constexpr size_t expected_len = SV2_HEADER_ENCRYPTED_SIZE + 91 + 32 + Poly1305::TAGLEN;
+    constexpr size_t expected_len = SV2_HEADER_ENCRYPTED_SIZE + SV2_NEW_TEMPLATE_MESSAGE_SIZE + 32 + Poly1305::TAGLEN;
     BOOST_TEST_MESSAGE("Receive NewTemplate");
     BOOST_REQUIRE_EQUAL(tester.PeerReceiveBytes(), expected_len);
 
@@ -265,7 +267,7 @@ BOOST_AUTO_TEST_CASE(client_tests)
     UninterruptibleSleep(std::chrono::milliseconds{1000});
 
     // Expect our peer to receive a NewTemplate message
-    BOOST_REQUIRE_EQUAL(tester.PeerReceiveBytes(), SV2_HEADER_ENCRYPTED_SIZE + 91 + 32 + Poly1305::TAGLEN);
+    BOOST_REQUIRE_EQUAL(tester.PeerReceiveBytes(), SV2_HEADER_ENCRYPTED_SIZE + SV2_NEW_TEMPLATE_MESSAGE_SIZE + 32 + Poly1305::TAGLEN);
 
     // Check that there's a new template
     BOOST_REQUIRE_EQUAL(tester.GetBlockTemplateCount(), 3);
@@ -284,7 +286,7 @@ BOOST_AUTO_TEST_CASE(client_tests)
 
     // We should send out another NewTemplate and SetNewPrevHash
     // The new template contains the new prevhash.
-    BOOST_REQUIRE_EQUAL(tester.PeerReceiveBytes(), 2 * SV2_HEADER_ENCRYPTED_SIZE + 91 + 32 + 80 + 2 * Poly1305::TAGLEN);
+    BOOST_REQUIRE_EQUAL(tester.PeerReceiveBytes(), 2 * SV2_HEADER_ENCRYPTED_SIZE + SV2_NEW_TEMPLATE_MESSAGE_SIZE + 32 + 80 + 2 * Poly1305::TAGLEN);
     // The SetNewPrevHash message is redundant
     // TODO: don't send it?
     // Background: in the future we want to send an empty or optimistic template
