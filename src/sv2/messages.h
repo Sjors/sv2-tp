@@ -283,6 +283,12 @@ struct Sv2NewTemplateMsg
     CScript m_coinbase_prefix;
 
     /**
+     * BIP 141 witness reserved value. If there is no segwit commitment in
+     * m_coinbase_tx_outputs this value must be ignored.
+     */
+    uint256 m_coinbase_witness_reserved_value;
+
+    /**
      * The coinbase transaction input’s nSequence field.
      */
     uint32_t m_coinbase_tx_input_sequence;
@@ -324,6 +330,7 @@ struct Sv2NewTemplateMsg
           << m_version
           << m_coinbase_tx_version
           << m_coinbase_prefix
+          << m_coinbase_witness_reserved_value
           << m_coinbase_tx_input_sequence
           << m_coinbase_tx_value_remaining
           << m_coinbase_tx_outputs_count;

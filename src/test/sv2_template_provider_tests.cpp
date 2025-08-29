@@ -18,7 +18,7 @@
 
 BOOST_FIXTURE_TEST_SUITE(sv2_template_provider_tests, TestChain100Setup)
 
-static constexpr size_t SV2_NEW_TEMPLATE_MESSAGE_SIZE{91};
+static constexpr size_t SV2_NEW_TEMPLATE_MESSAGE_SIZE{91 + 32};
 
 /**
   * A class for testing the Template Provider. Each TPTester encapsulates a
