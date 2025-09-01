@@ -27,7 +27,14 @@ PRIVATE
   sv2_messages_tests.cpp
   sv2_template_provider_tests.cpp
 )
-target_link_libraries(test_sv2 bitcoin_sv2)
+target_link_libraries(test_sv2 bitcoin_sv2 bitcoin_ipc)
+
+if(TARGET Libmultiprocess::multiprocess)
+  # test_sv2 directly includes generated IPC headers (init.capnp.h) which in turn
+  # include libmultiprocess headers (mp/proxy.capnp.h). When using external
+  # libmultiprocess, link the imported target to provide the necessary include paths.
+  target_link_libraries(test_sv2 Libmultiprocess::multiprocess)
+endif()
 
 function(add_boost_test source_file)
   if(NOT EXISTS ${source_file})

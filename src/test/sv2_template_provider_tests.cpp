@@ -1,8 +1,13 @@
 #include <addresstype.h>
 #include <boost/test/unit_test.hpp>
+#include <interfaces/init.h>
+#include <interfaces/ipc.h>
 #include <interfaces/mining.h>
+#include <ipc/capnp/init.capnp.h>
+#include <ipc/capnp/init.capnp.proxy.h>
 #include <node/miner.h>
 #include <node/transaction.h>
+#include <mp/proxy-io.h>
 #include <sv2/messages.h>
 #include <sv2/template_provider.h>
 #include <test/util/net.h>
@@ -11,7 +16,9 @@
 #include <util/sock.h>
 #include <util/strencodings.h>
 
+#include <future>
 #include <memory>
+#include <thread>
 
 // For verbose debugging use:
 // build/src/test/test_sv2 --run_test=sv2_template_provider_tests --log_level=all -- -debug=sv2 -loglevel=sv2:trace -printtoconsole=1 | grep -v disabled
@@ -19,6 +26,82 @@
 BOOST_FIXTURE_TEST_SUITE(sv2_template_provider_tests, TestChain100Setup)
 
 static constexpr size_t SV2_NEW_TEMPLATE_MESSAGE_SIZE{91};
+
+/**
+ * A test implementation of the Init interface that provides a Mining
+ * interface via the node context passed to its constructor.
+ */
+class TestInitImpl : public interfaces::Init {
+public:
+    TestInitImpl(node::NodeContext& node) : m_node(node) {}
+    std::unique_ptr<interfaces::Mining> makeMining() override { return interfaces::MakeMining(m_node); }
+private:
+    node::NodeContext& m_node;
+};
+
+/**
+ * A class to set up an IPC server and client for testing.
+ * The EventLoop runs in a separate thread.
+ */
+class IPCTestSetup {
+private:
+    std::unique_ptr<mp::Connection> m_server_connection;
+    std::unique_ptr<mp::Connection> m_client_connection;
+    std::promise<std::unique_ptr<ipc::capnp::messages::Init::Client>> m_client;
+    std::thread m_thread;
+
+public:
+    std::unique_ptr<interfaces::Init> m_init;
+
+    IPCTestSetup(node::NodeContext& node)
+        : m_thread([&] {
+            mp::EventLoop loop("test", [](bool raise, const std::string& log) {
+                std::cout << "LOG" << raise << ": " << log << "\n";
+                if (raise) throw std::runtime_error(log);
+            });
+            auto pipe{loop.m_io_context.provider->newTwoWayPipe()};
+
+            m_server_connection =
+            std::make_unique<mp::Connection>(loop, kj::mv(pipe.ends[0]), [&](mp::Connection& connection) {
+                auto server_proxy = kj::heap<mp::ProxyServer<ipc::capnp::messages::Init>>(
+                    std::make_shared<TestInitImpl>(node), connection
+                );
+                return capnp::Capability::Client(kj::mv(server_proxy));
+            });
+            m_server_connection->onDisconnect([&] {
+                m_server_connection.reset();
+            });
+            m_client_connection = std::make_unique<mp::Connection>(loop, kj::mv(pipe.ends[1]));
+            m_client_connection->onDisconnect([&] {
+                m_client_connection.reset();
+            });
+            m_client.set_value(std::make_unique<ipc::capnp::messages::Init::Client>(
+                m_client_connection->m_rpc_system->bootstrap(mp::ServerVatId().vat_id).castAs<ipc::capnp::messages::Init>()));
+
+            loop.loop();
+        })
+    {
+        auto client = m_client.get_future().get();
+        // Create ProxyClient after EventLoop starts to ensure the initialization
+        // "construct" request can be properly processed by the server.
+        m_init = std::make_unique<mp::ProxyClient<ipc::capnp::messages::Init>>(
+            std::move(*client), m_client_connection.get(), /* destroy_connection= */ true
+        );
+        // Release ownership of connection. ProxyClient manage its lifetime
+        // because destroy_connection is set to true.
+        m_client_connection.release();
+    }
+
+
+    ~IPCTestSetup()
+    {
+        // Destroy the Init client.
+        // The EventLoop will only stop after all
+        // clients are destroyed.
+        m_init.reset();
+        m_thread.join();
+    }
+};
 
 /**
   * A class for testing the Template Provider. Each TPTester encapsulates a
@@ -142,7 +225,8 @@ public:
 
 BOOST_AUTO_TEST_CASE(client_tests)
 {
-    auto mining{interfaces::MakeMining(m_node)};
+    IPCTestSetup ipc_test_setup{m_node};
+    auto mining{ipc_test_setup.m_init->makeMining()};
     TPTester tester{*mining};
 
     tester.handshake();
