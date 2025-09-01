@@ -539,7 +539,6 @@ inspecting signatures in Mach-O binaries.")
         ;; Compression and archiving
         tar
         gzip
-        xz
         ;; Build tools
         gcc-toolchain-13
         cmake-minimal
