@@ -12,7 +12,6 @@
              (gnu packages llvm)
              (gnu packages mingw)
              (gnu packages ninja)
-             (gnu packages pkg-config)
              ((gnu packages python) #:select (python-minimal))
              ((gnu packages python-build) #:select (python-poetry-core))
              ((gnu packages python-crypto) #:select (python-asn1crypto))
@@ -560,8 +559,7 @@ inspecting signatures in Mach-O binaries.")
                  nss-certs
                  osslsigncode))
           ((string-contains target "-linux-")
-           (list pkg-config
-                 (list gcc-toolchain-13 "static")
+           (list (list gcc-toolchain-13 "static")
                  (make-bitcoin-cross-toolchain target)))
           ((string-contains target "darwin")
            (list clang-toolchain-18
