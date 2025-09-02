@@ -182,7 +182,7 @@ make -C depends --jobs="$JOBS" HOST="$HOST" \
 
 case "$HOST" in
     *darwin*)
-        # Unset now that Qt is built
+        # Unset now that depends are built
         unset LIBRARY_PATH
         ;;
 esac
