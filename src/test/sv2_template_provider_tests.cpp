@@ -61,7 +61,8 @@ BOOST_AUTO_TEST_CASE(client_tests)
         1 +                 // future_template
         4 +                 // version
         4 +                 // coinbase_tx_version
-    2 +                 // coinbase_prefix (CompactSize(1) + 1-byte OP_0)
+        2 +                 // coinbase_prefix (CompactSize(1) + 1-byte OP_0)
+        32 +                // coinbase_witness (fixed-size reserved value)
         4 +                 // coinbase_tx_input_sequence
         8 +                 // coinbase_tx_value_remaining
         4 +                 // coinbase_tx_outputs_count (0)
