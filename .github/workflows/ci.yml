@@ -203,7 +203,7 @@ jobs:
             timeout-minutes: 120
             file-env: './ci/test/00_setup_env_native_asan.sh'
 
-          - name: 'macOS-cross, gui, no tests'
+          - name: 'macOS-cross, no tests'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-sm'
             fallback-runner: 'ubuntu-24.04'
             timeout-minutes: 120
@@ -213,7 +213,7 @@ jobs:
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-md'
             fallback-runner: 'ubuntu-24.04'
             timeout-minutes: 120
-            file-env: './ci/test/00_setup_env_i686_no_ipc.sh'
+            file-env: './ci/test/00_setup_env_i686.sh'
 
           - name: 'fuzzer,address,undefined,integer, no depends'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-lg'
@@ -227,7 +227,7 @@ jobs:
             timeout-minutes: 120
             file-env: './ci/test/00_setup_env_native_previous_releases.sh'
 
-          - name: 'CentOS, depends, gui'
+          - name: 'CentOS, depends'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-lg'
             fallback-runner: 'ubuntu-24.04'
             timeout-minutes: 120
@@ -239,7 +239,7 @@ jobs:
             timeout-minutes: 120
             file-env: './ci/test/00_setup_env_native_tidy.sh'
 
-          - name: 'TSan, depends, no gui'
+          - name: 'TSan, depends'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-lg'
             fallback-runner: 'ubuntu-24.04'
             timeout-minutes: 120
