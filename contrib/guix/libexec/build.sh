@@ -137,13 +137,19 @@ esac
 # LDFLAGS
 case "$HOST" in
     *linux*)
-        HOST_LDFLAGS="-Wl,--as-needed -Wl,--dynamic-linker=$glibc_dynamic_linker -static-libstdc++ -Wl,-O2"
+        HOST_LDFLAGS="-Wl,--as-needed -Wl,--dynamic-linker=$glibc_dynamic_linker -Wl,-O2"
         case "$HOST" in
             riscv64-linux-gnu) ;; # https://github.com/boostorg/test/issues/345
             *) HOST_LDFLAGS="${HOST_LDFLAGS} -Wl,--fatal-warnings" ;;
         esac
         ;;
     *mingw*) HOST_LDFLAGS="-Wl,--no-insert-timestamp -Wl,--fatal-warnings" ;;
+esac
+
+# Executable linker flags
+cmake_exe_linker_flags=()
+case "$HOST" in
+    *linux*) cmake_exe_linker_flags=("-DCMAKE_EXE_LINKER_FLAGS=${HOST_LDFLAGS} -static-libstdc++") ;;
 esac
 
 mkdir -p "$DISTSRC"
@@ -159,7 +165,8 @@ mkdir -p "$DISTSRC"
     cmake -S . -B build \
           --toolchain "${BASEPREFIX}/${HOST}/toolchain.cmake" \
           -DWITH_CCACHE=OFF \
-          ${CONFIGFLAGS}
+          ${CONFIGFLAGS} \
+          "${cmake_exe_linker_flags[@]}"
 
     # Build Bitcoin Core
     cmake --build build -j "$JOBS"
