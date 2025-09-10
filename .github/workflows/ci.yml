@@ -200,6 +200,7 @@ jobs:
             fallback-runner: 'ubuntu-24.04-arm'
             timeout-minutes: 120
             file-env: './ci/test/00_setup_env_arm.sh'
+            provider: 'gha'
 
           - name: 'ASan + LSan + UBSan + integer, no depends'
             cirrus-runner: 'ghcr.io/cirruslabs/ubuntu-runner-amd64:24.04-lg'
@@ -268,7 +269,7 @@ jobs:
       - name: Configure Docker
         uses: ./.github/actions/configure-docker
         with:
-          cache-provider: ${{ needs.runners.outputs.provider }}
+          cache-provider: ${{ matrix.provider || needs.runners.outputs.provider }}
 
       - name: Set mmap_rnd_bits
         if: ${{ env.CONTAINER_NAME == 'ci_native_tsan' || env.CONTAINER_NAME == 'ci_native_msan' }}
