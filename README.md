@@ -11,6 +11,8 @@ The Stratum v2 spec is documented here: https://stratumprotocol.org/specificatio
 For a general overview and how to get started, including the role of this repo,
 see https://stratumprotocol.org/developers.
 
+See also [doc/stratum-v2.md](doc/stratum-v2.md).
+
 Compile
 ------------------------
 

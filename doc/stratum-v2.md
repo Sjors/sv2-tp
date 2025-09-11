@@ -4,10 +4,10 @@
 
 The Stratum v2 protocol specification can be found here: https://stratumprotocol.org/specification
 
-Bitcoin Core (or a sidecar application connected to it via IPC) performs the
-Template Provider role, and for that it implements the Template Distribution
-Protocol. When launched with `-sv2` we listen for connections from either a
-Job Declarator client (JDF) or a Pool (pool default template or for solo mining).
+Bitcoin Core together together with this application perform the
+Template Provider role (Template Distribution
+Protocol). When launched we connect to running Bitcoin Core node via IPC and then listen for connections from either a
+Job Declarator client (JDC) or a Pool (pool default template or for solo mining).
 
 A JDC probably runs on the same machine. A different possible use case is where
 a miner relies on a node run by someone else to provide the templates. This is
@@ -137,9 +137,9 @@ Follow the instructions in [build-unix.md](build-unix.md), [build-osx.md](build-
 
 ### Parameters
 
-See also `bitcoind --help`.
+See also `sv2-tp --help`.
 
-Start Bitcoin Core with `-sv2` to start a Template Provider server with default settings.
+Start Bitcoin Core with `bitcoin -m node -ipcbind=unix` and then run `sv2-tp` to start a Template Provider server with default settings.
 The listening port can be changed with `-sv2port`.
 
 By default it only accepts connections from localhost. This can be changed
