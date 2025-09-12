@@ -3,6 +3,7 @@
 #include <arith_uint256.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <consensus/validation.h> // NO_WITNESS_COMMITMENT
 
 node::Sv2NewTemplateMsg::Sv2NewTemplateMsg(const CBlockHeader& header, const CTransactionRef coinbase_tx, std::vector<uint256> coinbase_merkle_path, int witness_commitment_index, uint64_t template_id, bool future_template)
     : m_template_id{template_id}, m_future_template{future_template}

@@ -6,6 +6,7 @@
 #include <common/args.h>
 #include <logging.h>
 #include <sv2/noise.h>
+#include <consensus/validation.h> // NO_WITNESS_COMMITMENT
 #include <util/readwritefile.h>
 #include <util/strencodings.h>
 #include <util/thread.h>
@@ -477,6 +478,14 @@ void Sv2TemplateProvider::PruneBlockTemplateCache()
 bool Sv2TemplateProvider::SendWork(Sv2Client& client, uint64_t template_id, BlockTemplate& block_template, bool future_template)
 {
     CBlockHeader header{block_template.getBlockHeader()};
+
+    // On signet, ensure the segwit commitment is present; otherwise, submitting a solution will fail.
+    if (gArgs.GetBoolArg("-signet", false) && block_template.getWitnessCommitmentIndex() == NO_WITNESS_COMMITMENT) {
+        LogPrintLevel(BCLog::SV2, BCLog::Level::Error,
+                      "Refusing to send NewTemplate on signet without segwit commitment (id=%lu)\n",
+                      template_id);
+        return false;
+    }
 
     node::Sv2NewTemplateMsg new_template{header,
                                         block_template.getCoinbaseTx(),
