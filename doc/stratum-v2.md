@@ -131,10 +131,6 @@ that any node can run a Template Provider as a public service.
 
 Using this in a production environment is not yet recommended, but see the testing guide below.
 
-### Build
-
-Follow the instructions in [build-unix.md](build-unix.md), [build-osx.md](build-osx.md).
-
 ### Parameters
 
 See also `sv2-tp --help`.
@@ -248,8 +244,6 @@ participant. Although for the Template Provider role this is not relevant.
 
 You can also create your own custom unsigned signet using the above configuration,
 just make to _not_ connect to the SRI signet because it might reorg your own chain.
-
-See [signet/README.md](../contrib/signet/README.md).
 
 #### Mining
 
