@@ -20,9 +20,7 @@ node::Sv2NewTemplateMsg::Sv2NewTemplateMsg(const CBlockHeader& header, const CTr
     m_coinbase_tx_outputs_count = 0;
     if (witness_commitment_index != NO_WITNESS_COMMITMENT) {
         m_coinbase_tx_outputs_count = 1;
-
-        std::vector<CTxOut> coinbase_tx_outputs{coinbase_tx->vout[witness_commitment_index]};
-        m_coinbase_tx_outputs = coinbase_tx_outputs;
+        m_coinbase_tx_outputs = {coinbase_tx->vout[witness_commitment_index]};
     }
 
     m_coinbase_tx_locktime = coinbase_tx->nLockTime;
