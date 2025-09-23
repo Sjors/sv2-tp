@@ -617,7 +617,7 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
     const char* disconnected = nullptr;
     proxy_client.m_context.loop->sync([&]() {
         if (!proxy_client.m_context.connection) {
-            const std::unique_lock<std::mutex> lock(thread_context.waiter->m_mutex);
+            const Lock lock(thread_context.waiter->m_mutex);
             done = true;
             disconnected = "IPC client method called after disconnect.";
             thread_context.waiter->m_cv.notify_all();
@@ -631,20 +631,20 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
         IterateFields().handleChain(*invoke_context, request, FieldList(), typename FieldObjs::BuildParams{&fields}...);
         proxy_client.m_context.loop->logPlain()
             << "{" << thread_context.thread_name << "} IPC client send "
-            << TypeName<typename Request::Params>() << " " << LogEscape(request.toString());
+            << TypeName<typename Request::Params>() << " " << LogEscape(request.toString(), proxy_client.m_context.loop->m_log_opts.max_chars);
 
         proxy_client.m_context.loop->m_task_set->add(request.send().then(
             [&](::capnp::Response<typename Request::Results>&& response) {
                 proxy_client.m_context.loop->logPlain()
                     << "{" << thread_context.thread_name << "} IPC client recv "
-                    << TypeName<typename Request::Results>() << " " << LogEscape(response.toString());
+                    << TypeName<typename Request::Results>() << " " << LogEscape(response.toString(), proxy_client.m_context.loop->m_log_opts.max_chars);
                 try {
                     IterateFields().handleChain(
                         *invoke_context, response, FieldList(), typename FieldObjs::ReadResults{&fields}...);
                 } catch (...) {
                     exception = std::current_exception();
                 }
-                const std::unique_lock<std::mutex> lock(thread_context.waiter->m_mutex);
+                const Lock lock(thread_context.waiter->m_mutex);
                 done = true;
                 thread_context.waiter->m_cv.notify_all();
             },
@@ -656,13 +656,13 @@ void clientInvoke(ProxyClient& proxy_client, const GetRequest& get_request, Fiel
                     proxy_client.m_context.loop->logPlain()
                         << "{" << thread_context.thread_name << "} IPC client exception " << kj_exception;
                 }
-                const std::unique_lock<std::mutex> lock(thread_context.waiter->m_mutex);
+                const Lock lock(thread_context.waiter->m_mutex);
                 done = true;
                 thread_context.waiter->m_cv.notify_all();
             }));
     });
 
-    std::unique_lock<std::mutex> lock(thread_context.waiter->m_mutex);
+    Lock lock(thread_context.waiter->m_mutex);
     thread_context.waiter->wait(lock, [&done]() { return done; });
     if (exception) std::rethrow_exception(exception);
     if (!kj_exception.empty()) proxy_client.m_context.loop->raise() << kj_exception;
@@ -701,7 +701,7 @@ kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
 
     int req = ++server_reqs;
     server.m_context.loop->log() << "IPC server recv request  #" << req << " "
-                                     << TypeName<typename Params::Reads>() << " " << LogEscape(params.toString());
+                                     << TypeName<typename Params::Reads>() << " " << LogEscape(params.toString(), server.m_context.loop->m_log_opts.max_chars);
 
     try {
         using ServerContext = ServerInvokeContext<Server, CallContext>;
@@ -718,7 +718,7 @@ kj::Promise<void> serverInvoke(Server& server, CallContext& call_context, Fn fn)
             [&]() { return kj::Promise<CallContext>(kj::mv(call_context)); })
             .then([&server, req](CallContext call_context) {
                 server.m_context.loop->log() << "IPC server send response #" << req << " " << TypeName<Results>()
-                                                 << " " << LogEscape(call_context.getResults().toString());
+                                                 << " " << LogEscape(call_context.getResults().toString(), server.m_context.loop->m_log_opts.max_chars);
             });
     } catch (const std::exception& e) {
         server.m_context.loop->log() << "IPC server unhandled exception: " << e.what();
