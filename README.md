@@ -47,6 +47,15 @@ need to provide the [Auhority Key]() which `sv2-tp` prints in the log.
 
 See https://github.com/stratum-mining/stratum.
 
+Troubleshooting
+------------------------
+
+All submitted blocks are stored in the data directory. To inspect in hex format:
+
+```sh
+xxd -p ~/.bitcoin/$BLOCK_HASH.dat | tr -d '\n'; echo
+```
+
 
 Relation to Bitcoin Core
 ------------------------

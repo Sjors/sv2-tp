@@ -10,6 +10,7 @@
 #include <util/readwritefile.h>
 #include <util/strencodings.h>
 #include <util/thread.h>
+#include <streams.h>
 
 Sv2TemplateProvider::Sv2TemplateProvider(interfaces::Mining& mining) : m_mining{mining}
 {
@@ -455,7 +456,45 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
             block_template = cached_block_template->second;
         }
 
-        block_template->submitSolution(solution.m_version, solution.m_header_timestamp, solution.m_header_nonce, MakeTransactionRef(solution.m_coinbase_tx));
+        // Submit the solution to construct and process the block
+        const bool submitted = block_template->submitSolution(
+            solution.m_version,
+            solution.m_header_timestamp,
+            solution.m_header_nonce,
+            MakeTransactionRef(solution.m_coinbase_tx));
+
+        SaveBlockAsync(block_template, submitted);
+}
+
+void Sv2TemplateProvider::SaveBlockAsync(std::shared_ptr<BlockTemplate> block_template, bool submitted)
+{
+    // Briefly wait (so we can focus on the next template) and then fetch and
+    // store the block for debugging purposes.
+    std::thread(&util::TraceThread, "sv2-saveblk",
+                [block_template = std::move(block_template), submitted]() mutable {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        // Retrieve block after delay
+        const CBlock block{block_template->getBlock()};
+        const uint256 block_hash = block.GetHash();
+        const fs::path out_path = gArgs.GetDataDirNet() / (block_hash.ToString() + ".dat").c_str();
+
+        // Serialize block including witness data
+        std::vector<unsigned char> block_data;
+        VectorWriter writer{block_data, 0};
+        writer << TX_WITH_WITNESS(block);
+        const std::string bytes{reinterpret_cast<const char*>(block_data.data()), block_data.size()};
+
+        if (!WriteBinaryFile(out_path, bytes)) {
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Error,
+                          "Failed to write block %s to %s\n",
+                          block_hash.ToString(), fs::PathToString(out_path));
+        } else {
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Debug,
+                          "Wrote block %s to %s (submitted=%d)\n",
+                          block_hash.ToString(), fs::PathToString(out_path), submitted);
+        }
+    }).detach();
 }
 
 void Sv2TemplateProvider::PruneBlockTemplateCache()
