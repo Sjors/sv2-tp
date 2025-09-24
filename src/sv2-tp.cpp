@@ -194,6 +194,10 @@ MAIN_FUNCTION
         UninterruptibleSleep(100ms);
     }
 
+    LogPrintLevel(BCLog::SV2, BCLog::Level::Info,
+                  "Interrupt received, waiting up to %d seconds before shutting down (-sv2interval)",
+                  options.fee_check_interval.count());
+
     tp->Interrupt();
     tp->StopThreads();
     tp.reset();
