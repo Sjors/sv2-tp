@@ -299,11 +299,15 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
             // Always set a timeout so Ctrl+C interrupts within a bounded time.
             options.timeout = m_options.is_test ? MillisecondsDouble(1000) : m_options.fee_check_interval;
             if (!check_fees) {
-                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Ignore fee changes for -sv2interval seconds, wait for a new tip, client id=%zu\n",
-                              client_id);
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace,
+                              "Ignore fee changes for %d seconds (-sv2interval), wait for a new tip, client id=%zu\n",
+                              m_options.fee_check_interval.count(), client_id);
             } else {
-                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Wait for fees to rise by %d sat or a new tip, client id=%zu\n",
-                              fee_delta, client_id);
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace,
+                              "Wait up to %d seconds for fees to rise by %lld sat or a new tip, client id=%zu\n",
+                              m_options.fee_check_interval.count(),
+                              static_cast<long long>(fee_delta),
+                              client_id);
             }
 
             uint256 old_prev_hash{block_template->getBlockHeader().hashPrevBlock};
