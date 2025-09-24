@@ -217,151 +217,157 @@ void Sv2TemplateProvider::ThreadSv2Handler()
 
 void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 {
-    Timer timer(m_options.fee_check_interval);
-    std::shared_ptr<BlockTemplate> block_template;
+    try {
+        Timer timer(m_options.fee_check_interval);
+        std::shared_ptr<BlockTemplate> block_template;
 
-    while (!m_flag_interrupt_sv2) {
-        if (!block_template) {
-            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Generate initial block template for client id=%zu\n",
-                          client_id);
-
-            // Create block template and store interface reference
-            // TODO: reuse template_id for clients with the same coinbase constraints
-            uint64_t template_id{WITH_LOCK(m_tp_mutex, return ++m_template_id;)};
-
-            node::BlockCreateOptions options {.use_mempool = true};
-            {
-                LOCK(m_connman->m_clients_mutex);
-                std::shared_ptr client = m_connman->GetClientById(client_id);
-                if (!client) break;
-
-                // The node enforces a minimum of 2000, though not for IPC so we could go a bit
-                // lower, but let's not...
-                options.block_reserved_weight = 2000 + client->m_coinbase_tx_outputs_size * 4;
-            }
-
-            const auto time_start{SteadyClock::now()};
-            block_template = m_mining.createNewBlock(options);
+        while (!m_flag_interrupt_sv2) {
             if (!block_template) {
-                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "No new template for client id=%zu, node is shutting down\n",
-                    client_id);
-                break;
-            }
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Generate initial block template for client id=%zu\n",
+                            client_id);
 
-            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Assemble template: %.2fms\n",
-                Ticks<MillisecondsDouble>(SteadyClock::now() - time_start));
+                // Create block template and store interface reference
+                // TODO: reuse template_id for clients with the same coinbase constraints
+                uint64_t template_id{WITH_LOCK(m_tp_mutex, return ++m_template_id;)};
 
-            uint256 prev_hash{block_template->getBlockHeader().hashPrevBlock};
-            {
-                LOCK(m_tp_mutex);
-                if (prev_hash != m_best_prev_hash) {
-                    m_best_prev_hash = prev_hash;
-                    // Does not need to be accurate
-                    m_last_block_time = GetTime<std::chrono::seconds>();
+                node::BlockCreateOptions options {.use_mempool = true};
+                {
+                    LOCK(m_connman->m_clients_mutex);
+                    std::shared_ptr client = m_connman->GetClientById(client_id);
+                    if (!client) break;
+
+                    // The node enforces a minimum of 2000, though not for IPC so we could go a bit
+                    // lower, but let's not...
+                    options.block_reserved_weight = 2000 + client->m_coinbase_tx_outputs_size * 4;
                 }
 
-                // Add template to cache before sending it, to prevent race
-                // condition: https://github.com/stratum-mining/stratum/issues/1773
-                m_block_template_cache.insert({template_id,block_template});
-            }
-
-            {
-                LOCK(m_connman->m_clients_mutex);
-                std::shared_ptr client = m_connman->GetClientById(client_id);
-                if (!client) break;
-
-                if (!SendWork(*client, template_id, *block_template, /*future_template=*/true)) {
-                    LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Disconnecting client id=%zu\n",
-                                  client_id);
-                    LOCK(client->cs_status);
-                    client->m_disconnect_flag = true;
-                }
-            }
-
-            timer.reset();
-        }
-
-        // The future template flag is set when there's a new prevhash,
-        // not when there's only a fee increase.
-        bool future_template{false};
-
-        // -sv2interval=N requires that we don't send fee updates until at least
-        // N seconds have gone by. So we first call waitNext() without a fee
-        // threshold, and then on the next while iteration we set it.
-        // TODO: add test coverage
-        const bool check_fees{m_options.is_test || timer.trigger()};
-
-        CAmount fee_delta{check_fees ? m_options.fee_delta : MAX_MONEY};
-
-        node::BlockWaitOptions options;
-        options.fee_threshold = fee_delta;
-        if (!check_fees) {
-            options.timeout = m_options.fee_check_interval;
-            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Ignore fee changes for -sv2interval seconds, wait for a new tip, client id=%zu\n",
-                          client_id);
-        } else {
-            if (m_options.is_test) {
-                options.timeout = MillisecondsDouble(1000);
-            }
-            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Wait for fees to rise by %d sat or a new tip, client id=%zu\n",
-                          fee_delta, client_id);
-        }
-
-        uint256 old_prev_hash{block_template->getBlockHeader().hashPrevBlock};
-        std::shared_ptr<BlockTemplate> tmpl = block_template->waitNext(options);
-        // The client may have disconnected during the wait, check now to avoid
-        // a spurious IPC call and confusing log statements.
-        {
-            LOCK(m_connman->m_clients_mutex);
-            if (!m_connman->GetClientById(client_id)) break;
-        }
-
-        if (tmpl) {
-            block_template = tmpl;
-            uint256 new_prev_hash{block_template->getBlockHeader().hashPrevBlock};
-
-            {
-                LOCK(m_tp_mutex);
-                if (new_prev_hash != old_prev_hash) {
-                    LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Tip changed, client id=%zu\n",
+                const auto time_start{SteadyClock::now()};
+                block_template = m_mining.createNewBlock(options);
+                if (!block_template) {
+                    LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "No new template for client id=%zu, node is shutting down\n",
                         client_id);
-                    future_template = true;
-                    m_best_prev_hash = new_prev_hash;
-                    // Does not need to be accurate
-                    m_last_block_time = GetTime<std::chrono::seconds>();
+                    break;
                 }
 
-                ++m_template_id;
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Assemble template: %.2fms\n",
+                    Ticks<MillisecondsDouble>(SteadyClock::now() - time_start));
 
-                // Add template to cache before sending it, to prevent race
-                // condition: https://github.com/stratum-mining/stratum/issues/1773
-                m_block_template_cache.insert({m_template_id,block_template});
+                uint256 prev_hash{block_template->getBlockHeader().hashPrevBlock};
+                {
+                    LOCK(m_tp_mutex);
+                    if (prev_hash != m_best_prev_hash) {
+                        m_best_prev_hash = prev_hash;
+                        // Does not need to be accurate
+                        m_last_block_time = GetTime<std::chrono::seconds>();
+                    }
+
+                    // Add template to cache before sending it, to prevent race
+                    // condition: https://github.com/stratum-mining/stratum/issues/1773
+                    m_block_template_cache.insert({template_id,block_template});
+                }
+
+                {
+                    LOCK(m_connman->m_clients_mutex);
+                    std::shared_ptr client = m_connman->GetClientById(client_id);
+                    if (!client) break;
+
+                    if (!SendWork(*client, template_id, *block_template, /*future_template=*/true)) {
+                        LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Disconnecting client id=%zu\n",
+                                    client_id);
+                        LOCK(client->cs_status);
+                        client->m_disconnect_flag = true;
+                    }
+                }
+
+                timer.reset();
             }
 
+            // The future template flag is set when there's a new prevhash,
+            // not when there's only a fee increase.
+            bool future_template{false};
+
+            // -sv2interval=N requires that we don't send fee updates until at least
+            // N seconds have gone by. So we first call waitNext() without a fee
+            // threshold, and then on the next while iteration we set it.
+            // TODO: add test coverage
+            const bool check_fees{m_options.is_test || timer.trigger()};
+
+            CAmount fee_delta{check_fees ? m_options.fee_delta : MAX_MONEY};
+
+            node::BlockWaitOptions options;
+            options.fee_threshold = fee_delta;
+            if (!check_fees) {
+                options.timeout = m_options.fee_check_interval;
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Ignore fee changes for -sv2interval seconds, wait for a new tip, client id=%zu\n",
+                              client_id);
+            } else {
+                if (m_options.is_test) {
+                    options.timeout = MillisecondsDouble(1000);
+                }
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Wait for fees to rise by %d sat or a new tip, client id=%zu\n",
+                              fee_delta, client_id);
+            }
+
+            uint256 old_prev_hash{block_template->getBlockHeader().hashPrevBlock};
+            std::shared_ptr<BlockTemplate> tmpl = block_template->waitNext(options);
+            // The client may have disconnected during the wait, check now to avoid
+            // a spurious IPC call and confusing log statements.
             {
                 LOCK(m_connman->m_clients_mutex);
-                std::shared_ptr client = m_connman->GetClientById(client_id);
-                if (!client) break;
-
-                if (!SendWork(*client, WITH_LOCK(m_tp_mutex, return m_template_id;), *block_template, future_template)) {
-                    LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Disconnecting client id=%zu\n",
-                                client_id);
-                    LOCK(client->cs_status);
-                    client->m_disconnect_flag = true;
-                }
+                if (!m_connman->GetClientById(client_id)) break;
             }
 
-            timer.reset();
-        } else {
-            // In production this only happens during shutdown, in tests timeouts are expected.
-            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Timeout for client id=%zu\n",
-                          client_id);
-        }
+            if (tmpl) {
+                block_template = tmpl;
+                uint256 new_prev_hash{block_template->getBlockHeader().hashPrevBlock};
 
-        if (m_options.is_test) {
-            // Take a break
-            std::this_thread::sleep_for(50ms);
+                {
+                    LOCK(m_tp_mutex);
+                    if (new_prev_hash != old_prev_hash) {
+                        LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Tip changed, client id=%zu\n",
+                            client_id);
+                        future_template = true;
+                        m_best_prev_hash = new_prev_hash;
+                        // Does not need to be accurate
+                        m_last_block_time = GetTime<std::chrono::seconds>();
+                    }
+
+                    ++m_template_id;
+
+                    // Add template to cache before sending it, to prevent race
+                    // condition: https://github.com/stratum-mining/stratum/issues/1773
+                    m_block_template_cache.insert({m_template_id,block_template});
+                }
+
+                {
+                    LOCK(m_connman->m_clients_mutex);
+                    std::shared_ptr client = m_connman->GetClientById(client_id);
+                    if (!client) break;
+
+                    if (!SendWork(*client, WITH_LOCK(m_tp_mutex, return m_template_id;), *block_template, future_template)) {
+                        LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Disconnecting client id=%zu\n",
+                                    client_id);
+                        LOCK(client->cs_status);
+                        client->m_disconnect_flag = true;
+                    }
+                }
+
+                timer.reset();
+            } else {
+                // In production this only happens during shutdown, in tests timeouts are expected.
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Timeout for client id=%zu\n",
+                              client_id);
+            }
+
+            if (m_options.is_test) {
+                // Take a break
+                std::this_thread::sleep_for(50ms);
+            }
         }
+    } catch (const std::exception& e) {
+        LogPrintLevel(BCLog::SV2, BCLog::Level::Trace,
+                      "Client thread for id=%zu exiting after exception: %s\n",
+                      client_id, e.what());
     }
 }
 
