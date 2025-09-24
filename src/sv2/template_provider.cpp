@@ -118,6 +118,8 @@ Sv2TemplateProvider::~Sv2TemplateProvider()
 void Sv2TemplateProvider::Interrupt()
 {
     m_flag_interrupt_sv2 = true;
+    // Also interrupt network threads so client handlers can wind down quickly.
+    if (m_connman) m_connman->Interrupt();
 }
 
 void Sv2TemplateProvider::StopThreads()
