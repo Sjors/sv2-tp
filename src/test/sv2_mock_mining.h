@@ -81,7 +81,6 @@ public:
     std::optional<interfaces::BlockRef> waitTipChanged(uint256, MillisecondsDouble) override;
     std::unique_ptr<interfaces::BlockTemplate> createNewBlock(const node::BlockCreateOptions&) override;
     bool checkBlock(const CBlock&, const node::BlockCheckOptions&, std::string&, std::string&) override;
-    node::NodeContext* context() override;
 
     // Accessors for tests (thread-safe)
     uint64_t GetTemplateSeq();
