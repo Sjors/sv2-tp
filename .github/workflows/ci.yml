@@ -271,6 +271,10 @@ jobs:
         with:
           cache-provider: ${{ matrix.provider || needs.runners.outputs.provider }}
 
+      - name: Clear unnecessary files
+        if: ${{ needs.runners.outputs.provider == 'gha' }}
+        uses: ./.github/actions/clear-files
+
       - name: Set mmap_rnd_bits
         if: ${{ env.CONTAINER_NAME == 'ci_native_tsan' || env.CONTAINER_NAME == 'ci_native_msan' }}
         # Prevents crashes due to high ASLR entropy
