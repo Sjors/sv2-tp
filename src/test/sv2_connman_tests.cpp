@@ -106,7 +106,7 @@ public:
         if (received == Sv2HandshakeState::HANDSHAKE_STEP2_SIZE &&
             m_remote_transport &&
             m_remote_transport->GetSendState() != Sv2Transport::SendState::READY) {
-            BOOST_TEST_MESSAGE("connman_handshake2: accumulated handshake size but transport not READY (possible ReadMsgES failure)");
+            BOOST_FAIL("connman_handshake2: full handshake bytes accumulated (" << received << ") but transport not READY (expected ReadMsgES success)");
         }
 
         BOOST_REQUIRE(IsConnected());

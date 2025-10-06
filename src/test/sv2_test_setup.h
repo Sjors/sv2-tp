@@ -8,6 +8,39 @@
 #include <test/util/random.h>
 #include <util/fs.h>
 #include <memory>
+#include <chrono>
+#include <limits>
+
+// SV2 noise / keys
+#include <sv2/noise.h>
+#include <key.h>
+
+/**
+ * Helper to build a skew-tolerant test certificate.
+ *
+ * Centralizes the decision to backdate valid_from by an hour so that CI
+ * environments with slight clock skew or start-up adjustments do not cause
+ * flakiness in certificate validation.
+ *
+ * Returns the constructed Sv2SignatureNoiseMessage and populates the timing
+ * output parameters for additional negative test cases (future start, expiry, etc.).
+ */
+inline Sv2SignatureNoiseMessage MakeSkewTolerantCertificate(const CKey& static_key,
+                                                           const CKey& authority_key,
+                                                           uint32_t& out_now,
+                                                           uint32_t& out_valid_from,
+                                                           uint32_t& out_valid_to,
+                                                           uint32_t backdate_secs = 3600,
+                                                           uint16_t version = 0)
+{
+    auto epoch_now = std::chrono::system_clock::now().time_since_epoch();
+    out_now = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::seconds>(epoch_now).count());
+    out_valid_from = out_now - backdate_secs; // tolerate backward jumps / skew
+    out_valid_to = std::numeric_limits<unsigned int>::max();
+    return Sv2SignatureNoiseMessage(version, out_valid_from, out_valid_to,
+                                    XOnlyPubKey(static_key.GetPubKey()), authority_key);
+}
+
 
 class ECC_Context;
 
