@@ -5,17 +5,16 @@
 #ifndef BITCOIN_TEST_SV2_TEST_SETUP_H
 #define BITCOIN_TEST_SV2_TEST_SETUP_H
 
-#include <test/util/random.h>
-#include <util/fs.h>
-#include <util/time.h>
-#include <memory>
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <memory>
 
-// SV2 noise / keys
-#include <sv2/noise.h>
 #include <key.h>
+#include <sv2/noise.h>
+#include <test/util/random.h>
+#include <util/fs.h>
+#include <util/time.h>
 
 /**
  * Helper to build a skew-tolerant test certificate.
