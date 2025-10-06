@@ -59,13 +59,10 @@ public:
         auto responder_authority_key{GenerateRandomKey()};
 
         // Create certificates
-        auto epoch_now = std::chrono::system_clock::now().time_since_epoch();
-        uint16_t version = 0;
-        uint32_t valid_from = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::seconds>(epoch_now).count());
-        uint32_t valid_to =  std::numeric_limits<unsigned int>::max();
-
-        auto responder_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
-                                    XOnlyPubKey(responder_static_key.GetPubKey()), responder_authority_key);
+        uint32_t now_secs{0};
+        uint32_t valid_from{0};
+        uint32_t valid_to{0};
+        auto responder_certificate = MakeSkewTolerantCertificate(responder_static_key, responder_authority_key, now_secs, valid_from, valid_to);
 
         if (test_initiator) {
             m_transport = std::make_unique<Sv2Transport>(initiator_static_key, XOnlyPubKey(responder_authority_key.GetPubKey()));
