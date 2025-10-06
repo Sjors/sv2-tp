@@ -28,6 +28,7 @@ PRIVATE
   sv2_mock_mining.cpp
   sv2_tp_tester.cpp
   sv2_template_provider_tests.cpp
+  sv2_tester_lifecycle_tests.cpp
 )
 target_link_libraries(test_sv2 bitcoin_sv2 bitcoin_ipc)
 
