@@ -127,10 +127,16 @@ void TPTester::SendPeerBytes()
 size_t TPTester::PeerReceiveBytes()
 {
     // Use shared fragment-tolerant helper for uniform instrumentation across tests.
-    return Sv2TestAccumulateRecv(m_current_client_pipes,
+    size_t total = Sv2TestAccumulateRecv(m_current_client_pipes,
         [this](std::span<const uint8_t> frag) {
             return m_peer_transport->ReceivedBytes(frag);
         }, std::chrono::milliseconds{2000}, "tp_peer_recv");
+    if (total == Sv2HandshakeState::HANDSHAKE_STEP2_SIZE &&
+        m_peer_transport &&
+        m_peer_transport->GetSendState() != Sv2Transport::SendState::READY) {
+        BOOST_TEST_MESSAGE("tp_peer_recv: accumulated exact handshake size but transport not READY (possible ReadMsgES failure)");
+    }
+    return total;
 }
 
 void TPTester::handshake()

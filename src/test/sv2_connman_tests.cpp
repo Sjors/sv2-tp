@@ -103,6 +103,11 @@ public:
             }, std::chrono::milliseconds{2000}, "connman_handshake2");
         // Enforce exact size of handshake step 2.
         BOOST_REQUIRE_EQUAL(received, Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
+        if (received == Sv2HandshakeState::HANDSHAKE_STEP2_SIZE &&
+            m_remote_transport &&
+            m_remote_transport->GetSendState() != Sv2Transport::SendState::READY) {
+            BOOST_TEST_MESSAGE("connman_handshake2: accumulated handshake size but transport not READY (possible ReadMsgES failure)");
+        }
 
         BOOST_REQUIRE(IsConnected());
     }

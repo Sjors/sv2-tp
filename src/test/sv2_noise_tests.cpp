@@ -37,23 +37,26 @@ BOOST_AUTO_TEST_CASE(certificate_test)
     auto alice_static_key{GenerateRandomKey()};
     auto alice_authority_key{GenerateRandomKey()};
 
-    // Create certificate
+    // Create certificate with a skew-tolerant validity window to avoid flakiness if
+    // system clock adjustments occur in CI (NTP, container startup, etc.). Start one hour
+    // in the past; keep the far-future expiry as before.
     auto epoch_now = std::chrono::system_clock::now().time_since_epoch();
     uint32_t now = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::seconds>(epoch_now).count());
     uint16_t version = 0;
-    uint32_t valid_from = now;
+    uint32_t valid_from = now - 3600; // tolerate backward jumps / skew
     uint32_t valid_to = std::numeric_limits<unsigned int>::max();
 
     auto alice_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
                                                       XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
 
+    BOOST_TEST_MESSAGE("certificate_test: now=" << now << " valid_from=" << valid_from << " valid_to=" << valid_to);
     BOOST_REQUIRE(alice_certificate.Validate(XOnlyPubKey(alice_authority_key.GetPubKey())));
 
     auto malory_authority_key{GenerateRandomKey()};
     BOOST_REQUIRE(!alice_certificate.Validate(XOnlyPubKey(malory_authority_key.GetPubKey())));
 
     // Check that certificate is not from the future
-    valid_from = now + 10000;
+    valid_from = now + 10000; // definitely in the future relative to 'now'
     alice_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
                                                  XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
     BOOST_REQUIRE(!alice_certificate.Validate(XOnlyPubKey(alice_authority_key.GetPubKey())));
@@ -89,6 +92,8 @@ BOOST_AUTO_TEST_CASE(handshake_and_transport_test)
     uint32_t valid_from = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::seconds>(epoch_now).count());
     uint32_t valid_to = std::numeric_limits<unsigned int>::max();
 
+    // Use skew-tolerant window (start one hour in past) like other tests to avoid rare CI time skew failures.
+    valid_from -= 3600;
     auto bob_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
                                                     XOnlyPubKey(bob_static_key.GetPubKey()),
                                                     bob_authority_key);

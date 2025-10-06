@@ -223,6 +223,7 @@ public:
         }
     }
 
+
     /** Schedule an encrypted packet with specified content to be sent to transport
      *  (only after ReceiveKey). */
     void SendPacket(Sv2NetMsg msg)
