@@ -12,6 +12,9 @@
 #include <util/thread.h>
 #include <streams.h>
 
+#include <algorithm>
+#include <limits>
+
 Sv2TemplateProvider::Sv2TemplateProvider(interfaces::Mining& mining) : m_mining{mining}
 {
     // TODO: persist static key
@@ -72,11 +75,12 @@ Sv2TemplateProvider::Sv2TemplateProvider(interfaces::Mining& mining) : m_mining{
     LogTrace(BCLog::SV2, "Authority key: %s\n", HexStr(m_authority_pubkey));
 
     // Generate and sign certificate
-    auto now{GetTime<std::chrono::seconds>()};
-    uint16_t version = 0;
+    const int64_t now_seconds{std::max<int64_t>(GetTime<std::chrono::seconds>().count(), 0)};
     // Start validity a little bit in the past to account for clock difference
-    uint32_t valid_from = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::seconds>(now).count()) - 3600;
-    uint32_t valid_to =  std::numeric_limits<unsigned int>::max(); // 2106
+    const int64_t backdated{std::max<int64_t>(now_seconds - int64_t{3600}, 0)};
+    const uint32_t valid_from{static_cast<uint32_t>(std::min<int64_t>(backdated, std::numeric_limits<uint32_t>::max()))};
+    const uint32_t valid_to{std::numeric_limits<uint32_t>::max()}; // 2106
+    uint16_t version = 0;
     Sv2SignatureNoiseMessage certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to, XOnlyPubKey(static_key.GetPubKey()), authority_key);
 
     m_connman = std::make_unique<Sv2Connman>(TP_SUBPROTOCOL, static_key, m_authority_pubkey, certificate);

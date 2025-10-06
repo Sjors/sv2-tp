@@ -5,17 +5,17 @@
 #ifndef BITCOIN_TEST_SV2_MOCK_MINING_H
 #define BITCOIN_TEST_SV2_MOCK_MINING_H
 
-#include <interfaces/mining.h>
-#include <script/script.h>
-#include <sync.h>
-#include <uint256.h>
-#include <primitives/transaction.h>
-
 #include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <vector>
+
+#include <interfaces/mining.h>
+#include <primitives/transaction.h>
+#include <script/script.h>
+#include <sync.h>
+#include <uint256.h>
 
 // Minimal mocks for the Mining IPC interface used by sv2 tests.
 

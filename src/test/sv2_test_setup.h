@@ -5,15 +5,16 @@
 #ifndef BITCOIN_TEST_SV2_TEST_SETUP_H
 #define BITCOIN_TEST_SV2_TEST_SETUP_H
 
-#include <test/util/random.h>
-#include <util/fs.h>
-#include <memory>
+#include <algorithm>
 #include <chrono>
 #include <limits>
+#include <memory>
 
-// SV2 noise / keys
-#include <sv2/noise.h>
 #include <key.h>
+#include <sv2/noise.h>
+#include <test/util/random.h>
+#include <util/fs.h>
+#include <util/time.h>
 
 /**
  * Helper to build a skew-tolerant test certificate.
@@ -33,13 +34,21 @@ inline Sv2SignatureNoiseMessage MakeSkewTolerantCertificate(const CKey& static_k
                                                            uint32_t backdate_secs = 3600,
                                                            uint16_t version = 0)
 {
-    auto epoch_now = std::chrono::system_clock::now().time_since_epoch();
-    out_now = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::seconds>(epoch_now).count());
-    out_valid_from = out_now - backdate_secs; // tolerate backward jumps / skew
+    const auto now = GetTime<std::chrono::seconds>();
+    const int64_t now_count = now.count();
+    const int64_t clamped_now = std::max<int64_t>(0, now_count);
+    out_now = static_cast<uint32_t>(clamped_now);
+
+    const int64_t backdated = std::max<int64_t>(0, clamped_now - static_cast<int64_t>(backdate_secs));
+    out_valid_from = static_cast<uint32_t>(backdated);
     out_valid_to = std::numeric_limits<unsigned int>::max();
+
     return Sv2SignatureNoiseMessage(version, out_valid_from, out_valid_to,
                                     XOnlyPubKey(static_key.GetPubKey()), authority_key);
 }
+
+//! Default mock time for SV2 unit tests: Bitcoin genesis block timestamp (2009-01-03).
+inline constexpr std::chrono::seconds TEST_GENESIS_TIME{1231006505};
 
 
 class ECC_Context;

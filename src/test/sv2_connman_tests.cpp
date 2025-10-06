@@ -43,12 +43,10 @@ public:
         m_connman_authority_pubkey = XOnlyPubKey(authority_key.GetPubKey());
 
         // Generate and sign certificate
-        auto now{GetTime<std::chrono::seconds>()};
-        uint16_t version = 0;
-        // Start validity a little bit in the past to account for clock difference
-        uint32_t valid_from = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::seconds>(now).count()) - 3600;
-        uint32_t valid_to =  std::numeric_limits<unsigned int>::max(); // 2106
-        Sv2SignatureNoiseMessage certificate{version, valid_from, valid_to, XOnlyPubKey(static_key.GetPubKey()), authority_key};
+        uint32_t now_secs{0};
+        uint32_t valid_from{0};
+        uint32_t valid_to{0};
+        Sv2SignatureNoiseMessage certificate = MakeSkewTolerantCertificate(static_key, authority_key, now_secs, valid_from, valid_to);
 
         m_connman = std::make_unique<Sv2Connman>(TP_SUBPROTOCOL, static_key, m_connman_authority_pubkey, certificate);
 
