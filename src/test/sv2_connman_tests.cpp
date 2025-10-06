@@ -4,6 +4,7 @@
 #include <sv2/transport.h>
 #include <test/util/net.h>
 #include <test/sv2_test_setup.h>
+#include <test/sv2_handshake_test_util.h>
 #include <util/sock.h>
 
 #include <memory>
@@ -71,25 +72,11 @@ public:
 
     size_t LocalToRemoteBytes()
     {
-        uint8_t buf[0x10000];
-        // Get the data that has been written to the accepted socket with Send() by Sv2Connman.
-        // Wait until the bytes appear in the "send" pipe.
-        ssize_t n;
-        for (;;) {
-            n = m_current_client_pipes->send.GetBytes(buf, sizeof(buf), 0);
-            if (n != -1 || errno != EAGAIN) {
-                break;
-            }
-            UninterruptibleSleep(50ms);
-        }
-
-        // Inform remote transport that some bytes have been received (sent by the local Sv2Connman).
-        if (n > 0) {
-            std::span<const uint8_t> s(buf, n);
-            BOOST_REQUIRE(m_remote_transport->ReceivedBytes(s));
-        }
-
-        return n;
+        // Unified fragment-tolerant receive for test bytes from Sv2Connman -> remote peer.
+        // allow_zero_first=true so callers can detect immediate disconnects (returns 0) without failure.
+        return Sv2TestAccumulateRecv(m_current_client_pipes,
+            [this](std::span<const uint8_t> frag) { return m_remote_transport->ReceivedBytes(frag); },
+            std::chrono::milliseconds{1000}, "connman_local_to_remote", /*allow_zero_first=*/true);
     }
 
     /* Create a new client and perform handshake */
@@ -108,8 +95,14 @@ public:
         // Flush transport for handshake part 1
         RemoteToLocalBytes();
 
-        // Read handshake part 2 from transport
-        BOOST_REQUIRE_EQUAL(LocalToRemoteBytes(), Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
+        // Read handshake part 2 from transport using fragment-tolerant helper.
+        // The handshake may arrive in multiple fragments; accumulate until ReceivedBytes returns true.
+        size_t received = Sv2TestAccumulateRecv(m_current_client_pipes,
+            [this](std::span<const uint8_t> frag) {
+                return m_remote_transport->ReceivedBytes(frag);
+            }, std::chrono::milliseconds{2000}, "connman_handshake2");
+        // Enforce exact size of handshake step 2.
+        BOOST_REQUIRE_EQUAL(received, Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
 
         BOOST_REQUIRE(IsConnected());
     }
@@ -179,7 +172,10 @@ BOOST_AUTO_TEST_CASE(client_tests)
     // An empty SetupConnection message should cause disconnection
     node::Sv2NetMsg sv2_msg{node::Sv2MsgType::SETUP_CONNECTION, {}};
     tester.RemoteToLocalMsg(sv2_msg);
-    BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), 0);
+    // Consume potential disconnect bytes via tolerant reader (expecting closure: helper would timeout if bytes keep coming)
+    // Fall back to legacy single read; if bytes present they should form a complete frame immediately.
+    auto first = tester.LocalToRemoteBytes();
+    BOOST_REQUIRE_EQUAL(first, 0);
 
     BOOST_REQUIRE(!tester.IsConnected());
 

@@ -20,6 +20,7 @@ extern std::function<void(const std::string&)> G_TEST_LOG_FUN;
 #include <util/sock.h>
 
 #include <test/sv2_mock_mining.h>
+#include <test/sv2_handshake_test_util.h>
 
 #include <future>
 #include <sys/socket.h>
@@ -114,25 +115,11 @@ void TPTester::SendPeerBytes()
 
 size_t TPTester::PeerReceiveBytes()
 {
-    uint8_t buf[0x10000];
-    // Get the data that has been written to the accepted socket with Send() by TP.
-    // Wait until the bytes appear in the "send" pipe.
-    ssize_t n;
-    for (;;) {
-        n = m_current_client_pipes->send.GetBytes(buf, sizeof(buf), 0);
-        if (n != -1 || errno != EAGAIN) {
-            break;
-        }
-        UninterruptibleSleep(50ms);
-    }
-
-    // Inform client's transport that some bytes have been received (sent by TP).
-    if (n > 0) {
-        std::span<const uint8_t> s(buf, n);
-        BOOST_REQUIRE(m_peer_transport->ReceivedBytes(s));
-    }
-
-    return n;
+    // Delegate to shared helper for fragment accumulation and diagnostics.
+    return Sv2TestAccumulateRecv(m_current_client_pipes,
+        [this](std::span<const uint8_t> frag) {
+            return m_peer_transport->ReceivedBytes(frag);
+        }, std::chrono::milliseconds{2000}, "tp_peer_recv_legacy");
 }
 
 void TPTester::handshake()
@@ -150,8 +137,10 @@ void TPTester::handshake()
     // Flush transport for handshake part 1
     SendPeerBytes();
 
-    // Read handshake part 2 from transport
-    BOOST_REQUIRE_EQUAL(PeerReceiveBytes(), Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
+    // Read handshake part 2 from transport (fragment-tolerant)
+    size_t received = PeerReceiveBytes();
+    // Handshake step 2 has a fixed size; ensure we received exactly that (no coalesced extra data).
+    BOOST_REQUIRE_EQUAL(received, Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
 }
 
 void TPTester::receiveMessage(Sv2NetMsg& msg)

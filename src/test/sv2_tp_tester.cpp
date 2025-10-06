@@ -19,6 +19,7 @@
 extern std::function<void(const std::string&)> G_TEST_LOG_FUN;
 
 #include <test/sv2_mock_mining.h>
+#include <test/sv2_handshake_test_util.h>
 
 #include <future>
 #include <sys/socket.h>
@@ -125,56 +126,11 @@ void TPTester::SendPeerBytes()
  */
 size_t TPTester::PeerReceiveBytes()
 {
-    constexpr auto TIMEOUT = 2s; // Generous for CI; in-process should finish far quicker.
-    const auto start = std::chrono::steady_clock::now();
-
-    std::vector<uint8_t> accum; // accumulate fragments
-    uint8_t buf[2048];
-    size_t total = 0;
-
-    for (;;) {
-        // Attempt a non-blocking receive from the TP's send pipe.
-        ssize_t n = m_current_client_pipes->send.GetBytes(buf, sizeof(buf), 0);
-        if (n == -1 && errno == EAGAIN) {
-            // No data right now; check timeout then sleep briefly.
-            if (std::chrono::steady_clock::now() - start > TIMEOUT) {
-                BOOST_FAIL("PeerReceiveBytes timeout waiting for data; accumulated=" << accum.size());
-            }
-            UninterruptibleSleep(10ms);
-            continue;
-        }
-        if (n < 0) {
-            BOOST_FAIL("Unexpected negative read (errno=" << errno << ")");
-        }
-        if (n == 0) {
-            // Connection closed? For in-process pipes this should not happen during test.
-            if (accum.empty()) {
-                BOOST_FAIL("Zero-length read with no accumulated data");
-            }
-        }
-
-        if (n > 0) {
-            accum.insert(accum.end(), buf, buf + n);
-            total += n;
-        }
-
-        // Feed the *newly received* bytes to the transport (contract: span is mutated to reflect unprocessed remainder).
-        // We pass only the newest fragment first; if transport returns false it buffered internally, so we loop for more.
-        if (n > 0) {
-            std::span<const uint8_t> fragment(buf, n);
-            bool done = m_peer_transport->ReceivedBytes(fragment);
-            if (done) {
-                return total;
-            }
-        }
-
-        // Not done yet; check timeout.
-        if (std::chrono::steady_clock::now() - start > TIMEOUT) {
-            BOOST_FAIL("PeerReceiveBytes timeout after partial fragments; total=" << total);
-        }
-        // Brief backoff before next poll to avoid busy spin.
-        UninterruptibleSleep(5ms);
-    }
+    // Use shared fragment-tolerant helper for uniform instrumentation across tests.
+    return Sv2TestAccumulateRecv(m_current_client_pipes,
+        [this](std::span<const uint8_t> frag) {
+            return m_peer_transport->ReceivedBytes(frag);
+        }, std::chrono::milliseconds{2000}, "tp_peer_recv");
 }
 
 void TPTester::handshake()
@@ -195,8 +151,8 @@ void TPTester::handshake()
     // Read handshake part 2 from transport. We no longer assume it arrives as one contiguous read;
     // PeerReceiveBytes will loop until the transport signals completion (READY send state) or timeout.
     size_t received = PeerReceiveBytes();
-    // A full handshake step 2 must make the transport transition to READY send state; we assert minimal size heuristic.
-    BOOST_TEST(received >= Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
+    // Handshake step 2 is a fixed-size structure; assert strict equality.
+    BOOST_REQUIRE_EQUAL(received, Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
 }
 
 void TPTester::receiveMessage(Sv2NetMsg& msg)
