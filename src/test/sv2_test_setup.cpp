@@ -18,6 +18,9 @@ Sv2BasicTestingSetup::Sv2BasicTestingSetup()
     // Select a default chain for tests to satisfy BaseParams() users.
     SelectBaseParams(ChainType::REGTEST);
 
+    // Default mock time anchored to Bitcoin genesis so certificate helpers see a realistic clock.
+    SetMockTime(TEST_GENESIS_TIME);
+
     // Create an isolated temporary datadir for this test process.
     const auto micros = count_microseconds(Now<SteadyMicroseconds>().time_since_epoch());
     const std::string subdir = util::Join(std::array<std::string, 2>{"sv2_tests", util::ToString(micros)}, "");
@@ -37,6 +40,8 @@ Sv2BasicTestingSetup::Sv2BasicTestingSetup()
 
 Sv2BasicTestingSetup::~Sv2BasicTestingSetup()
 {
+    SetMockTime(std::chrono::seconds{0});
+
     try {
         fs::remove_all(m_tmp_root);
     } catch (const std::exception&) {

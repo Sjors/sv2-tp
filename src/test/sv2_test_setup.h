@@ -47,6 +47,9 @@ inline Sv2SignatureNoiseMessage MakeSkewTolerantCertificate(const CKey& static_k
                                     XOnlyPubKey(static_key.GetPubKey()), authority_key);
 }
 
+//! Default mock time for SV2 unit tests: Bitcoin genesis block timestamp (2009-01-03).
+inline constexpr std::chrono::seconds TEST_GENESIS_TIME{1231006505};
+
 
 class ECC_Context;
 
