@@ -172,9 +172,9 @@ MAIN_FUNCTION
             node_init = mine_init->ipc()->connectAddress(address);
             break;  // Success: break out of the loop
         } catch (const std::exception& exception) {
-            tfm::format(std::cerr, "IPC connection failed: %s\n", exception.what());
-            tfm::format(std::cerr, "bitcoin-node might not be running or listening on a UNIX socket.\n");
-            tfm::format(std::cerr, "Retrying in 10 seconds...\n\n");
+            LogPrintf("IPC connection failed: %s\n", exception.what());
+            LogPrintf("bitcoin-node might not be running or listening on a UNIX socket.\n");
+            LogPrintf("Retrying in 10 seconds...\n");
 
             std::this_thread::sleep_for(std::chrono::seconds(10));
         }
