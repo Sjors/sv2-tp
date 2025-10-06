@@ -161,18 +161,24 @@ MAIN_FUNCTION
         options.fee_check_interval = std::chrono::seconds(args.GetIntArg("-sv2interval", 0));
     }
 
-    // Connect to existing bitcoin-node process or spawn new one.
+    // Connect to bitcoin-node via IPC
+    //
+    // If the node is not available, keep retrying in a loop every 10 seconds.
     std::unique_ptr<interfaces::Init> mine_init{interfaces::MakeBasicInit("sv2-tp", argc > 0 ? argv[0] : "")};
     assert(mine_init);
     std::unique_ptr<interfaces::Init> node_init;
-    try {
-        std::string address{args.GetArg("-ipcconnect", "unix")};
-        node_init = mine_init->ipc()->connectAddress(address);
-    } catch (const std::exception& exception) {
-        tfm::format(std::cerr, "Error: %s\n", exception.what());
-        tfm::format(std::cerr, "Probably bitcoin-node is not running or not listening on a unix socket. Can be started with:\n\n");
-        tfm::format(std::cerr, "    bitcoin-node -chain=%s -ipcbind=unix\n", args.GetChainTypeString());
-        return EXIT_FAILURE;
+    std::string address{args.GetArg("-ipcconnect", "unix")};
+    while (true) {
+        try {
+            node_init = mine_init->ipc()->connectAddress(address);
+            break;  // Success: break out of the loop
+        } catch (const std::exception& exception) {
+            LogPrintf("IPC connection failed: %s\n", exception.what());
+            LogPrintf("bitcoin-node might not be running or listening on a UNIX socket.\n");
+            LogPrintf("Retrying in 10 seconds...\n");
+
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+        }
     }
     assert(node_init);
     tfm::format(std::cout, "Connected to bitcoin-node\n");
