@@ -19,13 +19,4 @@ All other packaging related files can be found in the [bitcoin-core/packaging](h
 ### [MacDeploy](/contrib/macdeploy) ###
 Scripts and notes for Mac builds.
 
-Test and Verify Tools
----------------------
-
-### [TestGen](/contrib/testgen) ###
-Utilities to generate test vectors for the data-driven Bitcoin tests.
-
-### [Verify-Binaries](/contrib/verify-binaries) ###
-This script attempts to download and verify the signature file SHA256SUMS.asc from bitcoin.org.
-
 

@@ -295,10 +295,7 @@ mkdir -p "$DISTSRC"
         esac
 
         case "$HOST" in
-            *mingw*)
-                cp "${DISTSRC}/doc/README_windows.txt" "${DISTNAME}/readme.txt"
-                ;;
-            *linux*)
+            *mingw*|*linux*)
                 cp "${DISTSRC}/README.md" "${DISTNAME}/"
                 ;;
         esac
