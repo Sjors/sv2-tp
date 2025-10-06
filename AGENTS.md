@@ -3,6 +3,7 @@
 To keep the repository tidy and easy to maintain, automated agents should follow these principles:
 
 - **Follow established style.** Consult the developer guidelines in [`doc/developer-notes.md`](doc/developer-notes.md) before writing or editing code. Adhere to the documented formatting, naming, and documentation conventions unless the project maintainers request otherwise.
+- **Mind indentation-sensitive formats.** When touching YAML, Python, Markdown lists, or other whitespace-aware files, preserve the existing indentation levels and continuation alignment. Prefer editing tools like `apply_patch` that keep surrounding context intact, and re-read the affected block before saving to avoid shifting keys or breaking workflows.
 - **Delete obsolete source files.** When retiring code, prefer removing the corresponding files outright instead of leaving stub implementations (for example, those containing only `#error` guards).
 - **Confirm large refactors.** When a deletion task appears to require non-trivial refactoring elsewhere, pause and ask for confirmation first—consider whether removing the code you're about to refactor is a better alternative.
 - **Update build metadata.** After deleting files, ensure any build scripts, project files, or documentation lists referencing them are updated accordingly.
