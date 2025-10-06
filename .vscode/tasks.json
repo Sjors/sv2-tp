@@ -1,0 +1,80 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "configure (dev-mode)",
+			"type": "shell",
+			"command": "cmake -S ${workspaceFolder} -B ${workspaceFolder}/build -DWERROR=ON -DWITH_USDT=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON --preset dev-mode",
+			"problemMatcher": ["$gcc"],
+			"group": {"kind": "build"}
+		},
+		{
+			"label": "clean build dir",
+			"type": "shell",
+			"command": "rm -rf ${workspaceFolder}/build",
+			"problemMatcher": []
+		},
+		{
+			"label": "clean+configure (dev-mode)",
+			"type": "shell",
+			"command": "echo 'Completed clean+configure (dev-mode)'",
+			"dependsOn": ["clean build dir", "configure (dev-mode)"],
+			"dependsOrder": "sequence",
+			"problemMatcher": ["$gcc"],
+			"group": "build"
+		},
+		{
+			"label": "configure (debug)",
+			"type": "shell",
+			"command": "cmake -S ${workspaceFolder} -B ${workspaceFolder}/build -DCMAKE_BUILD_TYPE=Debug -DWERROR=ON -DWITH_USDT=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON --preset dev-mode",
+			"problemMatcher": ["$gcc"],
+			"group": "build"
+		},
+		{
+			"label": "build test_sv2 (Release)",
+			"type": "shell",
+			"command": "cmake --build ${workspaceFolder}/build --target test_sv2 --config Release --parallel $(command -v nproc >/dev/null 2>&1 && nproc || sysctl -n hw.ncpu)",
+			"dependsOn": ["configure (dev-mode)"],
+			"problemMatcher": ["$gcc"],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "build test_sv2 (Debug)",
+			"type": "shell",
+			"command": "cmake --build ${workspaceFolder}/build --target test_sv2 --parallel $(command -v nproc >/dev/null 2>&1 && nproc || sysctl -n hw.ncpu)",
+			"dependsOn": ["configure (debug)"],
+			"problemMatcher": ["$gcc"],
+			"group": "build"
+		},
+		{
+			"label": "run sv2 tests",
+			"type": "shell",
+			"command": "ctest --test-dir build -j 1 -R sv2_ -V",
+			"dependsOn": ["build test_sv2 (Release)"],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "build (debug)",
+			"type": "shell",
+			"command": "cmake --build build --parallel $(command -v nproc >/dev/null 2>&1 && nproc || sysctl -n hw.ncpu)",
+			"problemMatcher": ["$gcc"],
+			"group": "build"
+		}
+		,
+		{
+			"label": "run sv2 tests (quiet)",
+			"type": "shell",
+			"command": "ctest --test-dir build -j $(command -v nproc >/dev/null 2>&1 && nproc || sysctl -n hw.ncpu) -R sv2_",
+			"dependsOn": ["build test_sv2 (Release)"],
+			"group": "test",
+			"problemMatcher": []
+		}
+	]
+}
