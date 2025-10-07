@@ -225,6 +225,19 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
         Timer timer(m_options.fee_check_interval);
         std::shared_ptr<BlockTemplate> block_template;
 
+        const auto prepare_block_create_options = [this, client_id](node::BlockCreateOptions& options) -> bool {
+            {
+                LOCK(m_connman->m_clients_mutex);
+                std::shared_ptr client = m_connman->GetClientById(client_id);
+                if (!client) return false;
+
+                // The node enforces a minimum of 2000, though not for IPC so we could go a bit
+                // lower, but let's not...
+                options.block_reserved_weight = 2000 + client->m_coinbase_tx_outputs_size * 4;
+            }
+            return true;
+        };
+
         while (!m_flag_interrupt_sv2) {
             if (!block_template) {
                 LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Generate initial block template for client id=%zu\n",
@@ -234,19 +247,11 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 // TODO: reuse template_id for clients with the same coinbase constraints
                 uint64_t template_id{WITH_LOCK(m_tp_mutex, return ++m_template_id;)};
 
-                node::BlockCreateOptions options {.use_mempool = true};
-                {
-                    LOCK(m_connman->m_clients_mutex);
-                    std::shared_ptr client = m_connman->GetClientById(client_id);
-                    if (!client) break;
-
-                    // The node enforces a minimum of 2000, though not for IPC so we could go a bit
-                    // lower, but let's not...
-                    options.block_reserved_weight = 2000 + client->m_coinbase_tx_outputs_size * 4;
-                }
+                node::BlockCreateOptions block_create_options{.use_mempool = true};
+                if (!prepare_block_create_options(block_create_options)) break;
 
                 const auto time_start{SteadyClock::now()};
-                block_template = m_mining.createNewBlock(options);
+                block_template = m_mining.createNewBlock(block_create_options);
                 if (!block_template) {
                     LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "No new template for client id=%zu, node is shutting down\n",
                         client_id);
