@@ -132,6 +132,9 @@ MAIN_FUNCTION
     }
 
     ECC_Context ecc_context{};
+    std::string sha256_algo = SHA256AutoDetect();
+    LogInfo("Using the '%s' SHA256 implementation\n", sha256_algo);
+    RandomInit();
 
     // Parse -sv2... params
     Sv2TemplateProviderOptions options{};
