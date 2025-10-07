@@ -556,14 +556,25 @@ bool Sv2TemplateProvider::SendWork(Sv2Client& client, uint64_t template_id, Bloc
     // TODO: use optimistic send instead of adding to the queue
 
     LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x71 NewTemplate id=%lu future=%d to client id=%zu\n", template_id, future_template, client.m_id);
-    LOCK(client.cs_send);
-    client.m_send_messages.emplace_back(new_template);
+    {
+        LOCK(client.cs_send);
+        client.m_send_messages.emplace_back(new_template);
 
-    if (future_template) {
-        node::Sv2SetNewPrevHashMsg new_prev_hash{header, template_id};
-        LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x72 SetNewPrevHash to client id=%zu\n", client.m_id);
-        client.m_send_messages.emplace_back(new_prev_hash);
+        if (future_template) {
+            node::Sv2SetNewPrevHashMsg new_prev_hash{header, template_id};
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x72 SetNewPrevHash to client id=%zu\n", client.m_id);
+            client.m_send_messages.emplace_back(new_prev_hash);
+        }
     }
+
+    CAmount total_fees{0};
+    for (const CAmount fee : block_template.getTxFees()) {
+        total_fees += fee;
+    }
+    LogPrintLevel(BCLog::SV2, BCLog::Level::Debug,
+                  "Template %lu includes %lld sat in fees\n",
+                  template_id,
+                  static_cast<long long>(total_fees));
 
     return true;
 }
