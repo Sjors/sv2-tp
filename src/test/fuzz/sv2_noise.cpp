@@ -108,24 +108,60 @@ FUZZ_TARGET(sv2_noise_cipher_roundtrip, .init = Initialize)
     if (!seed.Derive(tmp, 12)) return;
     CKey bob_ephemeral_key{tmp.key};
 
-    // Create certificate
-    // Pick random times in the past or future
-    uint32_t now = provider.ConsumeIntegralInRange<uint32_t>(10000U, UINT32_MAX);
-    SetMockTime(now);
-    uint16_t version = provider.ConsumeBool() ? 0 : provider.ConsumeIntegral<uint16_t>();
-    uint32_t past = provider.ConsumeIntegralInRange<uint32_t>(0, now);
-    uint32_t future = provider.ConsumeIntegralInRange<uint32_t>(now, UINT32_MAX);
-    uint32_t valid_from = provider.ConsumeBool() ? past : future;
-    uint32_t valid_to = provider.ConsumeBool() ? future : past;
+    if (!seed.Derive(tmp, 13)) return;
+    CKey malory_authority_key{tmp.key};
 
-    auto bob_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
-                                                    XOnlyPubKey(bob_static_key.GetPubKey()), bob_authority_key);
+    const bool use_fixture_times = provider.ConsumeBool();
+    const bool sign_with_expected_authority = use_fixture_times ? true : provider.ConsumeBool();
 
-    bool valid_certificate = version == 0 &&
-                             (valid_from <= now) &&
-                             (valid_to >= now);
+    uint32_t now{0};
+    uint32_t valid_from{0};
+    uint32_t valid_to{0};
+    uint16_t version{0};
 
-    LogTrace(BCLog::SV2, "valid_certificate: %d - version %u, past: %u, now %u, future: %u\n", valid_certificate, version, past, now, future);
+    Sv2SignatureNoiseMessage bob_certificate;
+
+    if (use_fixture_times) {
+        SetMockTime(TEST_GENESIS_TIME);
+        bob_certificate = MakeSkewTolerantCertificate(bob_static_key, bob_authority_key, now, valid_from, valid_to);
+    } else {
+        now = provider.ConsumeIntegralInRange<uint32_t>(10000U, UINT32_MAX);
+        uint32_t past = provider.ConsumeIntegralInRange<uint32_t>(0, now);
+        uint32_t future = provider.ConsumeIntegralInRange<uint32_t>(now, UINT32_MAX);
+        valid_from = provider.ConsumeBool() ? past : future;
+        valid_to = provider.ConsumeBool() ? future : past;
+        version = provider.ConsumeBool() ? 0 : provider.ConsumeIntegral<uint16_t>();
+
+        const CKey& signing_authority_key = sign_with_expected_authority ? bob_authority_key : malory_authority_key;
+        bob_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
+                                                   XOnlyPubKey(bob_static_key.GetPubKey()), signing_authority_key);
+    }
+
+    SetMockTime(std::chrono::seconds{now});
+
+    const bool certificate_valid_for_expected = bob_certificate.Validate(XOnlyPubKey(bob_authority_key.GetPubKey()));
+    bool expected_valid = sign_with_expected_authority && version == 0 && (valid_from <= now) && (valid_to >= now);
+    if (use_fixture_times) {
+        expected_valid = true;
+        version = 0;
+    }
+    assert(certificate_valid_for_expected == expected_valid);
+    bool valid_certificate = certificate_valid_for_expected;
+
+    if (sign_with_expected_authority) {
+        const bool alternate_valid = bob_certificate.Validate(XOnlyPubKey(malory_authority_key.GetPubKey()));
+        assert(!alternate_valid);
+    }
+
+    LogTrace(BCLog::SV2,
+             "Certificate scenario fixture=%d, version=%u, now=%u, valid_from=%u, valid_to=%u, signed_expected=%d, valid=%d\n",
+             use_fixture_times,
+             version,
+             now,
+             valid_from,
+             valid_to,
+             sign_with_expected_authority,
+             valid_certificate);
 
     // Alice's static is not used in the test
     // Alice needs to verify Bob's certificate, so we pass his authority key
