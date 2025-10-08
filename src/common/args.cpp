@@ -35,7 +35,7 @@
 #include <utility>
 #include <variant>
 
-const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf";
+const char * const BITCOIN_CONF_FILENAME = "sv2-tp.conf";
 
 ArgsManager gArgs;
 

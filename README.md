@@ -47,6 +47,30 @@ need to provide the [Auhority Key]() which `sv2-tp` prints in the log.
 
 See https://github.com/stratum-mining/stratum.
 
+Configuration
+------------------------
+`sv2-tp` reads its own configuration file. By default it looks for
+`sv2-tp.conf` inside the data directory (for example
+`~/.bitcoin/sv2-tp.conf`). This keeps Template Provider settings separate from
+the Bitcoin Core node configuration in `bitcoin.conf` and prevents warnings
+about unrelated options. You can override the location with `-conf=<path>` or
+set `-conf=0` to disable config file loading entirely.
+
+Here is an example configuration:
+
+```ini
+chain=signet
+
+ipcconnect=unix
+sv2interval=30
+sv2feedelta=1000
+
+# Logging
+debug=sv2
+loglevel=sv2:trace
+debug=ipc
+```
+
 Troubleshooting
 ------------------------
 
