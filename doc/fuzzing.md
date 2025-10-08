@@ -198,10 +198,12 @@ Full configuration step for macOS:
 
 ```sh
 $ brew install llvm lld
-$ cmake --preset=libfuzzer \
-   -DCMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
-   -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
-   -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"
+$ LLVM_PREFIX="$(brew --prefix llvm)"
+$ cmake --preset=libfuzzer-nosan \
+   -DCMAKE_C_COMPILER="${LLVM_PREFIX}/bin/clang" \
+   -DCMAKE_CXX_COMPILER="${LLVM_PREFIX}/bin/clang++" \
+   -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${LLVM_PREFIX}/lib/c++ -Wl,-rpath,${LLVM_PREFIX}/lib/c++" \
+   -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld -L${LLVM_PREFIX}/lib/c++ -Wl,-rpath,${LLVM_PREFIX}/lib/c++"
 ```
 
 Read the [libFuzzer documentation](https://llvm.org/docs/LibFuzzer.html) for more information. This [libFuzzer tutorial](https://github.com/google/fuzzing/blob/master/tutorial/libFuzzerTutorial.md) might also be of interest.
