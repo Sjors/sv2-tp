@@ -129,6 +129,84 @@ The placeholders `<N>`, `<max-bytes>`, and `<total-bytes>` will reflect the actu
 
 Keeping runs deterministic (`BUILD_FOR_FUZZING=ON`) ensures that shared corpora reproduce coverage increases on every machine.
 
+### Collect coverage locally with LLVM tools
+
+It can be useful to quantify how well an existing corpus exercises the SV2
+implementation. LLVM’s profiling support works nicely with the fuzz harness:
+
+1. Generate a dedicated coverage build (macOS example using the Homebrew LLVM
+   toolchain; adjust paths for other platforms):
+
+   ```sh
+   $ LLVM_PREFIX="$(brew --prefix llvm)"
+   $ cmake -S . -B build-coverage \
+      -DBUILD_FOR_FUZZING=ON \
+      -DSANITIZERS=fuzzer \
+      -DFUZZ_BINARY_LINKS_WITHOUT_MAIN_FUNCTION=ON \
+      -DCMAKE_C_COMPILER="${LLVM_PREFIX}/bin/clang" \
+      -DCMAKE_CXX_COMPILER="${LLVM_PREFIX}/bin/clang++" \
+      -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -L${LLVM_PREFIX}/lib/c++ -Wl,-rpath,${LLVM_PREFIX}/lib/c++" \
+      -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld -L${LLVM_PREFIX}/lib/c++ -Wl,-rpath,${LLVM_PREFIX}/lib/c++" \
+      -DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+      -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping"
+   $ cmake --build build-coverage --target fuzz
+   ```
+
+   If you change these options later, clear `build-coverage/` (or at least its
+   `CMakeCache.txt`) before reconfiguring so the libFuzzer driver check can be
+   rerun.
+
+2. Run the harness against your corpus while emitting raw profiling data. The
+   `FUZZ` environment variable selects the target. Warnings about missing
+   `__sanitizer_*` symbols are expected when AddressSanitizer is not linked.
+
+   ```sh
+   $ mkdir -p coverage-out/artifacts coverage-out/corpus
+   $ rsync -a ../sv2-tp-qa-assets/fuzz_corpora/sv2_noise_cipher_roundtrip/ coverage-out/corpus/
+   $ FUZZ=sv2_noise_cipher_roundtrip \
+      LLVM_PROFILE_FILE="coverage-out/sv2-%p.profraw" \
+      build-coverage/bin/fuzz \
+      coverage-out/corpus \
+      -artifact_prefix=coverage-out/artifacts/ \
+      -jobs=4 \
+      -workers=4 \
+      -max_total_time=300
+   ```
+
+   Omit `-max_total_time` if you prefer to stop the run manually with `Ctrl+C`.
+
+   To use multiple CPU cores, add both `-jobs=<N>` and `-workers=<N>`: `-jobs`
+   tells the coordinator how many subprocesses to spawn, while `-workers`
+   informs each child that it should participate in the distributed run. Each
+   worker remains single-threaded, so overall throughput scales by doubling the
+   number of independent workers.
+
+   The `-artifact_prefix` directory is reserved for any crashing or timeout
+   reproducer that libFuzzer discovers; in deterministic runs it normally stays
+   empty unless the harness triggers a failure. Keeping it separate from the
+   corpus avoids mixing confirmed crash cases with coverage-driven seeds.
+
+   When aiming to contribute corpus updates, prefer writing new seeds to a
+   scratch directory (see [Grow or refresh the
+   `sv2_noise_cipher_roundtrip` corpus](#grow-or-refresh-the-sv2_noise_cipher_roundtrip-corpus))
+   and merge them back with `-merge=1`. Letting libFuzzer mutate files directly
+   inside `sv2-tp-qa-assets` works but will leave the repo dirty until you run a
+   merge pass to trim redundant inputs.
+
+3. Merge and inspect coverage:
+
+   ```sh
+   $(brew --prefix llvm)/bin/llvm-profdata merge -sparse coverage-out/sv2-*.profraw -o coverage-out/sv2.profdata
+   $(brew --prefix llvm)/bin/llvm-cov report build-coverage/bin/fuzz -instr-profile=coverage-out/sv2.profdata
+   $(brew --prefix llvm)/bin/llvm-cov show \
+      build-coverage/bin/fuzz \
+      -instr-profile=coverage-out/sv2.profdata \
+      src/sv2/noise.cpp \
+      -show-line-counts-or-regions
+   ```
+
+   (If you already have those tools on PATH you may omit the `$(brew --prefix llvm)/bin/` prefix.)
+
 ## Using the MemorySanitizer (MSan)
 
 MSan [requires](https://clang.llvm.org/docs/MemorySanitizer.html#handling-external-code)
