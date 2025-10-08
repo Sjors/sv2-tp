@@ -84,22 +84,23 @@ $ FUZZ=address_deserialize_v2 build_fuzz/bin/fuzz -runs=1 fuzz_corpora/address_d
 
 ## Fuzzing corpora
 
-The project's collection of seed corpora is found in the [`bitcoin-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) repo.
+The project's collection of seed corpora is found in the [`sv2-tp-qa-assets`](https://github.com/Sjors/sv2-tp-qa-assets) repo.
 
-To fuzz `process_message` using the [`bitcoin-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) seed corpus:
+To fuzz `sv2_noise_cipher_roundtrip` using the [`sv2-tp-qa-assets`](https://github.com/Sjors/sv2-tp-qa-assets) seed corpus:
 
 ```sh
-$ git clone --depth=1 https://github.com/bitcoin-core/qa-assets
-$ FUZZ=process_message build_fuzz/bin/fuzz qa-assets/fuzz_corpora/process_message/
+$ git clone --depth=1 https://github.com/Sjors/sv2-tp-qa-assets
+$ FUZZ=sv2_noise_cipher_roundtrip build_fuzz/bin/fuzz sv2-tp-qa-assets/fuzz_corpora/sv2_noise_cipher_roundtrip/
 INFO: Seed: 1346407872
 INFO: Loaded 1 modules   (424174 inline 8-bit counters): 424174 [0x55d8a9004ab8, 0x55d8a906c3a6),
 INFO: Loaded 1 PC tables (424174 PCs): 424174 [0x55d8a906c3a8,0x55d8a96e5288),
-INFO:      991 files found in qa-assets/fuzz_corpora/process_message/
+INFO:      <N> files found in sv2-tp-qa-assets/fuzz_corpora/sv2_noise_cipher_roundtrip/
 INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 4096 bytes
-INFO: seed corpus: files: 991 min: 1b max: 1858b total: 288291b rss: 150Mb
-#993    INITED cov: 7063 ft: 8236 corp: 25/3821b exec/s: 0 rss: 181Mb
-…
+INFO: seed corpus: files: <N> min: 1b max: <max-bytes> total: <total-bytes> rss: 150Mb
+#…
 ```
+
+The placeholders `<N>`, `<max-bytes>`, and `<total-bytes>` will reflect the actual size of your local corpus snapshot.
 
 ## Using the MemorySanitizer (MSan)
 
@@ -120,35 +121,35 @@ good for finding bugs. However, the very slow execution even under libFuzzer
 will limit the ability to find new coverage. A good approach is to perform
 occasional long runs without the additional bug-detectors
 (`--preset=libfuzzer-nosan`) and then merge new inputs into a corpus as described in
-the qa-assets repo
-(https://github.com/bitcoin-core/qa-assets/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
+the sv2-tp-qa-assets repo
+(https://github.com/Sjors/sv2-tp-qa-assets/blob/master/.github/PULL_REQUEST_TEMPLATE.md).
 Patience is useful; even with improved throughput, libFuzzer may need days and
 10s of millions of executions to reach deep/hard targets.
 
 ## Reproduce a fuzzer crash reported by the CI
 
-- `cd` into the `qa-assets` directory and update it with `git pull qa-assets`
+- `cd` into the `sv2-tp-qa-assets` directory and update it with `git pull origin master`
 - locate the crash case described in the CI output, e.g. `Test unit written to
   ./crash-1bc91feec9fc00b107d97dc225a9f2cdaa078eb6`
 - make sure to compile with all sanitizers, if they are needed (fuzzing runs
   more slowly with sanitizers enabled, but a crash should be reproducible very
   quickly from a crash case)
 - run the fuzzer with the case number appended to the seed corpus path:
-  `FUZZ=process_message build_fuzz/bin/fuzz
-  qa-assets/fuzz_corpora/process_message/1bc91feec9fc00b107d97dc225a9f2cdaa078eb6`
+   `FUZZ=sv2_noise_cipher_roundtrip build_fuzz/bin/fuzz
+   sv2-tp-qa-assets/fuzz_corpora/sv2_noise_cipher_roundtrip/1bc91feec9fc00b107d97dc225a9f2cdaa078eb6`
 - If the file does not exist, make sure you are checking out the exact same commit id
-  for the qa-assets repo. If the file was found while running the fuzz engine in the CI,
+   for the sv2-tp-qa-assets repo. If the file was found while running the fuzz engine in the CI,
   you should be able to reproduce the crash locally  with the same (or a similar input)
   within a few minutes. Alternatively, you can use the base64 encoded file from the CI log,
   if it exists. e.g.
   `echo "Nb6Fc/97AACAAAD/ewAAgAAAAIAAAACAAAAAoA==" |
-  base64 --decode > qa-assets/fuzz_corpora/process_message/1bc91feec9fc00b107d97dc225a9f2cdaa078eb6`
+   base64 --decode > sv2-tp-qa-assets/fuzz_corpora/sv2_noise_cipher_roundtrip/1bc91feec9fc00b107d97dc225a9f2cdaa078eb6`
 
 ## Submit improved coverage
 
-If you find coverage increasing inputs when fuzzing you are highly encouraged to submit them for inclusion in the [`bitcoin-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) repo.
+If you find coverage increasing inputs when fuzzing you are highly encouraged to submit them for inclusion in the [`sv2-tp-qa-assets`](https://github.com/Sjors/sv2-tp-qa-assets) repo.
 
-Every single pull request submitted against the Bitcoin Core repo is automatically tested against all inputs in the [`bitcoin-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) repo. Contributing new coverage increasing inputs is an easy way to help make Bitcoin Core more robust.
+Every single pull request submitted against the Template Provider repo is automatically tested against all inputs in the [`sv2-tp-qa-assets`](https://github.com/Sjors/sv2-tp-qa-assets) repo. Contributing new coverage increasing inputs is an easy way to help make the Template Provider more robust.
 
 ## Building and debugging fuzz tests
 

@@ -5,7 +5,7 @@
 include(${CMAKE_CURRENT_LIST_DIR}/CoverageInclude.cmake)
 
 if(NOT DEFINED FUZZ_CORPORA_DIR)
-  set(FUZZ_CORPORA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/qa-assets/fuzz_corpora)
+  set(FUZZ_CORPORA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sv2-tp-qa-assets/fuzz_corpora)
 endif()
 
 set(fuzz_test_runner test/fuzz/test_runner.py ${FUZZ_CORPORA_DIR})

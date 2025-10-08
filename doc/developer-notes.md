@@ -525,9 +525,9 @@ Running fuzz tests with one or more targets
 
 ```shell
 # For single target run with the target of choice
-LLVM_PROFILE_FILE="$(pwd)/build/raw_profile_data/txorphan.profraw" ./build/test/fuzz/test_runner.py ../qa-assets/fuzz_corpora txorphan
+LLVM_PROFILE_FILE="$(pwd)/build/raw_profile_data/txorphan.profraw" ./build/test/fuzz/test_runner.py ../sv2-tp-qa-assets/fuzz_corpora txorphan
 # If running for multiple targets
-LLVM_PROFILE_FILE="$(pwd)/build/raw_profile_data/%m_%p.profraw" ./build/test/fuzz/test_runner.py ../qa-assets/fuzz_corpora
+LLVM_PROFILE_FILE="$(pwd)/build/raw_profile_data/%m_%p.profraw" ./build/test/fuzz/test_runner.py ../sv2-tp-qa-assets/fuzz_corpora
 # Merge profiles
 llvm-profdata merge build/raw_profile_data/*.profraw -o build/coverage.profdata
 ```

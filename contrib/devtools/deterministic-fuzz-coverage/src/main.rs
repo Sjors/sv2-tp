@@ -25,7 +25,7 @@ fn exit_help(err: &str) -> AppError {
         r#"
 Error: {err}
 
-Usage: program ./build_dir ./qa-assets/fuzz_corpora fuzz_target_name [parallelism={DEFAULT_PAR}]
+Usage: program ./build_dir ./sv2-tp-qa-assets/fuzz_corpora fuzz_target_name [parallelism={DEFAULT_PAR}]
 
 Refer to the devtools/README.md for more details."#
     )

@@ -37,8 +37,8 @@ are still references to Bitcoin Core.
 - Create the draft, named "*version* Release Notes Draft", as a [collaborative wiki](https://github.com/bitcoin-core/bitcoin-devwiki/wiki/_new).
 - Clear the release notes: `cp doc/release-notes-empty-template.md doc/release-notes.md`
 - Create a pinned meta-issue for testing the release candidate (see [this issue](https://github.com/bitcoin/bitcoin/issues/27621) for an example) and provide a link to it in the release announcements where useful.
-- Prune inputs from the qa-assets repo (See [pruning
-  inputs](https://github.com/bitcoin-core/qa-assets#pruning-inputs)).
+- Prune inputs from the sv2-tp-qa-assets repo (See [pruning
+  inputs](https://github.com/Sjors/sv2-tp-qa-assets#pruning-inputs)).
 
 #### Before final release
 
