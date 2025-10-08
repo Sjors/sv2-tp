@@ -115,8 +115,8 @@ FUZZ_TARGET(sv2_noise_cipher_roundtrip, .init = Initialize)
     uint16_t version = provider.ConsumeBool() ? 0 : provider.ConsumeIntegral<uint16_t>();
     uint32_t past = provider.ConsumeIntegralInRange<uint32_t>(0, now);
     uint32_t future = provider.ConsumeIntegralInRange<uint32_t>(now, UINT32_MAX);
-    uint32_t valid_from = int32_t(provider.ConsumeBool() ? past : future);
-    uint32_t valid_to = int32_t(provider.ConsumeBool() ? future : past);
+    uint32_t valid_from = provider.ConsumeBool() ? past : future;
+    uint32_t valid_to = provider.ConsumeBool() ? future : past;
 
     auto bob_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
                                                     XOnlyPubKey(bob_static_key.GetPubKey()), bob_authority_key);
