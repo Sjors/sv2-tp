@@ -69,7 +69,7 @@ function(add_boost_test source_file)
       COMMAND test_sv2 --run_test=${test_suite_name} --catch_system_error=no --log_level=test_suite -- DEBUG_LOG_OUT
     )
     set_property(TEST ${test_suite_name} PROPERTY
-      SKIP_REGULAR_EXPRESSION "no test cases matching filter" "skipping script_assets_test"
+      SKIP_REGULAR_EXPRESSION "no test cases matching filter"
     )
   endforeach()
 endfunction()

@@ -51,12 +51,6 @@ if [ "$RUN_FUZZ_TESTS" = "true" ]; then
     echo "Using sv2-tp-qa-assets repo from commit ..."
     git log -1
   )
-elif [ "$RUN_UNIT_TESTS" = "true" ] || [ "$RUN_UNIT_TESTS_SEQUENTIAL" = "true" ]; then
-  export DIR_UNIT_TEST_DATA=${DIR_QA_ASSETS}/unit_test_data/
-  if [ ! -d "$DIR_UNIT_TEST_DATA" ]; then
-    mkdir -p "$DIR_UNIT_TEST_DATA"
-    ${CI_RETRY_EXE} curl --location --fail https://github.com/Sjors/sv2-tp-qa-assets/raw/master/unit_test_data/script_assets_test.json -o "${DIR_UNIT_TEST_DATA}/script_assets_test.json"
-  fi
 fi
 
 if [ "$USE_BUSY_BOX" = "true" ]; then
@@ -142,7 +136,6 @@ if [ "$RUN_CHECK_DEPS" = "true" ]; then
 fi
 
 if [ "$RUN_UNIT_TESTS" = "true" ]; then
-  DIR_UNIT_TEST_DATA="${DIR_UNIT_TEST_DATA}" \
   LD_LIBRARY_PATH="${DEPENDS_DIR}/${HOST}/lib" \
   CTEST_OUTPUT_ON_FAILURE=ON \
   ctest --test-dir "${BASE_BUILD_DIR}" \
@@ -152,7 +145,7 @@ if [ "$RUN_UNIT_TESTS" = "true" ]; then
 fi
 
 if [ "$RUN_UNIT_TESTS_SEQUENTIAL" = "true" ]; then
-  DIR_UNIT_TEST_DATA="${DIR_UNIT_TEST_DATA}" LD_LIBRARY_PATH="${DEPENDS_DIR}/${HOST}/lib" "${BASE_BUILD_DIR}"/bin/test_sv2 --catch_system_errors=no -l test_suite
+  LD_LIBRARY_PATH="${DEPENDS_DIR}/${HOST}/lib" "${BASE_BUILD_DIR}"/bin/test_sv2 --catch_system_errors=no -l test_suite
 fi
 
 if [ "${RUN_TIDY}" = "true" ]; then
