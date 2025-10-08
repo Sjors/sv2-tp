@@ -127,16 +127,30 @@ void TPTester::SendPeerBytes()
 size_t TPTester::PeerReceiveBytes()
 {
     // Use shared fragment-tolerant helper for uniform instrumentation across tests.
+    size_t consumed_total = 0;
     size_t total = Sv2TestAccumulateRecv(m_current_client_pipes,
-        [this](std::span<const uint8_t> frag) {
-            return m_peer_transport->ReceivedBytes(frag);
+        [this, &consumed_total](std::span<const uint8_t> frag) {
+            const size_t initial = frag.size();
+            bool done = m_peer_transport->ReceivedBytes(frag);
+            const size_t consumed = initial - frag.size();
+            consumed_total += consumed;
+            if (!frag.empty()) {
+                m_current_client_pipes->send.PushBytes(frag.data(), frag.size());
+            }
+            return done;
         }, std::chrono::milliseconds{2000}, "tp_peer_recv");
     if (total == Sv2HandshakeState::HANDSHAKE_STEP2_SIZE &&
         m_peer_transport &&
         m_peer_transport->GetSendState() != Sv2Transport::SendState::READY) {
         BOOST_FAIL("tp_peer_recv: full handshake bytes accumulated (" << total << ") but transport not READY (expected ReadMsgES success)");
     }
-    return total;
+
+    if (m_peer_transport && m_peer_transport->ReceivedMessageComplete()) {
+        bool reject_message = false;
+        m_peer_transport->GetReceivedMessage(std::chrono::microseconds{0}, reject_message);
+        BOOST_REQUIRE(!reject_message);
+    }
+    return consumed_total > 0 ? consumed_total : total;
 }
 
 void TPTester::handshake()
