@@ -17,6 +17,7 @@
 
 #include <future>
 #include <memory>
+#include <string>
 #include <thread>
 
 // TPTester handles IPC glue internally; no need to include IPC headers here
@@ -69,13 +70,43 @@ BOOST_AUTO_TEST_CASE(client_tests)
         4 +                 // coinbase_tx_locktime
         1;                  // merkle_path count (CompactSize(0))
 
-    // Two messages back-to-back: headers + payloads + 2 payload tags
-    size_t bytes_first = tester.PeerReceiveBytes();
-    BOOST_REQUIRE_EQUAL(bytes_first,
-        2 * SV2_HEADER_ENCRYPTED_SIZE +
-        SV2_NEW_TEMPLATE_MESSAGE_SIZE +
-        SV2_SET_NEW_PREV_HASH_MESSAGE_SIZE +
-        2 * Poly1305::TAGLEN);
+    // Two messages (SetNewPrevHash + NewTemplate) may arrive in one read or sequentially.
+    const size_t expected_set_new_prev_hash = SV2_HEADER_ENCRYPTED_SIZE + SV2_SET_NEW_PREV_HASH_MESSAGE_SIZE + Poly1305::TAGLEN;
+    const size_t expected_new_template = SV2_HEADER_ENCRYPTED_SIZE + SV2_NEW_TEMPLATE_MESSAGE_SIZE + Poly1305::TAGLEN;
+    const size_t expected_pair_bytes = expected_set_new_prev_hash + expected_new_template;
+
+    const auto expect_template_pair = [&](const char* context) {
+        size_t accumulated = 0;
+        bool seen_prev_hash = false;
+        bool seen_new_template = false;
+        int iterations = 0;
+
+        while (accumulated < expected_pair_bytes) {
+            size_t chunk = tester.PeerReceiveBytes();
+            accumulated += chunk;
+            ++iterations;
+
+            if (chunk == expected_set_new_prev_hash) {
+                seen_prev_hash = true;
+            } else if (chunk == expected_new_template) {
+                seen_new_template = true;
+            } else if (chunk == expected_pair_bytes) {
+                seen_prev_hash = true;
+                seen_new_template = true;
+                break;
+            } else {
+                BOOST_FAIL(std::string("Unexpected message size while receiving ") + context);
+            }
+
+            BOOST_REQUIRE_MESSAGE(iterations <= 2, std::string("Too many fragments for ") + context);
+        }
+
+        BOOST_REQUIRE_MESSAGE(seen_prev_hash, std::string("Missing SetNewPrevHash during ") + context);
+        BOOST_REQUIRE_MESSAGE(seen_new_template, std::string("Missing NewTemplate during ") + context);
+        BOOST_REQUIRE_MESSAGE(accumulated == expected_pair_bytes, std::string("Incomplete response for ") + context);
+    };
+
+    expect_template_pair("initial template broadcast");
 
     // There should now be one template
     BOOST_REQUIRE_EQUAL(tester.GetBlockTemplateCount(), 1);
@@ -191,12 +222,7 @@ BOOST_AUTO_TEST_CASE(client_tests)
     BOOST_REQUIRE(tester.m_mining_control->WaitForTemplateSeq(seq_after_second_nt + 1));
 
     // We should send out another NewTemplate and SetNewPrevHash (two messages)
-    size_t bytes_tip_pair = tester.PeerReceiveBytes();
-    BOOST_REQUIRE_EQUAL(bytes_tip_pair,
-        2 * SV2_HEADER_ENCRYPTED_SIZE +
-        SV2_NEW_TEMPLATE_MESSAGE_SIZE +
-        SV2_SET_NEW_PREV_HASH_MESSAGE_SIZE +
-        2 * Poly1305::TAGLEN);
+    expect_template_pair("new tip template broadcast");
     // The SetNewPrevHash message is redundant
     // TODO: don't send it?
     // Background: in the future we want to send an empty or optimistic template
