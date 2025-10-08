@@ -102,6 +102,33 @@ INFO: seed corpus: files: <N> min: 1b max: <max-bytes> total: <total-bytes> rss:
 
 The placeholders `<N>`, `<max-bytes>`, and `<total-bytes>` will reflect the actual size of your local corpus snapshot.
 
+### Grow or refresh the `sv2_noise_cipher_roundtrip` corpus
+
+1. Build a no-sanitizer fuzz binary (see [macOS hints](#macos-hints-for-libfuzzer) for a working toolchain configuration).
+2. Create scratch directories for new inputs and crash artifacts:
+   ```sh
+   $ mkdir -p scratch_corpus artifacts
+   ```
+3. Let libFuzzer explore for a while (adjust `-max_total_time` to taste). The warnings about missing `__sanitizer_*` symbols are expected when running without sanitizers:
+   ```sh
+   $ FUZZ=sv2_noise_cipher_roundtrip \
+       build_fuzz_nosan/bin/fuzz \
+       -max_total_time=300 \
+       -artifact_prefix=./artifacts/ \
+       ./scratch_corpus
+   ```
+4. Merge the interesting seeds into the checked-in corpus. This keeps only the coverage-increasing files in `sv2-tp-qa-assets/fuzz_corpora/sv2_noise_cipher_roundtrip/`:
+   ```sh
+   $ FUZZ=sv2_noise_cipher_roundtrip \
+       build_fuzz_nosan/bin/fuzz \
+       -merge=1 \
+       ../sv2-tp-qa-assets/fuzz_corpora/sv2_noise_cipher_roundtrip \
+       ./scratch_corpus
+   ```
+5. Review the results, commit them to the `sv2-tp-qa-assets` repository, and remove the temporary `scratch_corpus/` directory when finished.
+
+Keeping runs deterministic (`BUILD_FOR_FUZZING=ON`) ensures that shared corpora reproduce coverage increases on every machine.
+
 ## Using the MemorySanitizer (MSan)
 
 MSan [requires](https://clang.llvm.org/docs/MemorySanitizer.html#handling-external-code)
