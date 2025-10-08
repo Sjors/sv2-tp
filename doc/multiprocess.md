@@ -19,7 +19,7 @@ make -C depends
 HOST_PLATFORM="x86_64-pc-linux-gnu"
 cmake -B build --toolchain=depends/$HOST_PLATFORM/toolchain.cmake
 cmake --build build
-build/bin/bitcoin -m node -regtest -printtoconsole -debug=ipc
+build/bin/bitcoin -m node -regtest -debug=ipc
 BITCOIN_CMD="bitcoin -m" build/test/functional/test_runner.py
 ```
 
@@ -33,7 +33,7 @@ The libmultiprocess sources at [../src/ipc/libmultiprocess/](../src/ipc/libmulti
 
 ## Usage
 
-Recommended way to use multiprocess binaries is to invoke `bitcoin` CLI like `bitcoin -m node -debug=ipc` or `bitcoin -m gui -printtoconsole -debug=ipc`.
+Recommended way to use multiprocess binaries is to invoke `bitcoin` CLI like `bitcoin -m node -debug=ipc` or `bitcoin -m gui -debug=ipc`.
 
 When the `-m` (`--multiprocess`) option is used the `bitcoin` command will execute multiprocess binaries instead of monolithic ones (`bitcoin-node` instead of `bitcoind`). The multiprocess binaries can also be invoked directly, but this is not recommended as they may change or be renamed in the future, and they are not installed in the PATH.
 

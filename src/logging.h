@@ -29,6 +29,7 @@ static const bool DEFAULT_LOGIPS        = false;
 static const bool DEFAULT_LOGTIMESTAMPS = true;
 static const bool DEFAULT_LOGTHREADNAMES = false;
 static const bool DEFAULT_LOGSOURCELOCATIONS = false;
+static constexpr bool DEFAULT_PRINTTOCONSOLE = true;
 static constexpr bool DEFAULT_LOGLEVELALWAYS = false;
 extern const char * const DEFAULT_DEBUGLOGFILE;
 
@@ -108,7 +109,7 @@ namespace BCLog {
         std::string GetLogPrefix(LogFlags category, Level level) const;
 
     public:
-        bool m_print_to_console = false;
+        bool m_print_to_console = DEFAULT_PRINTTOCONSOLE;
         bool m_print_to_file = false;
 
         bool m_log_timestamps = DEFAULT_LOGTIMESTAMPS;

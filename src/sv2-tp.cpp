@@ -125,7 +125,7 @@ MAIN_FUNCTION
         tfm::format(std::cerr, "Error: %s\n", util::ErrorString(result).original);
         return EXIT_FAILURE;
     }
-    LogInstance().m_print_to_console = args.GetBoolArg("-printtoconsole", LogInstance().GetCategoryMask());
+    LogInstance().m_print_to_console = args.GetBoolArg("-printtoconsole", DEFAULT_PRINTTOCONSOLE);
     if (!init::StartLogging(args)) {
         tfm::format(std::cerr, "Error: StartLogging failed\n");
         return EXIT_FAILURE;

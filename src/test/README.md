@@ -66,12 +66,12 @@ The `test_sv2` runner also accepts some of the command line arguments accepted b
 `bitcoind`. Use `--` to separate these sets of arguments:
 
 ```bash
-build/bin/test_sv2 --log_level=all --run_test=getarg_tests -- -printtoconsole=1
+build/bin/test_sv2 --log_level=all --run_test=getarg_tests -- -debug=sv2
 ```
 
-The `-printtoconsole=1` after the two dashes sends debug logging, which
-normally goes only to `debug.log` within the data directory, to the
-standard terminal output as well.
+Console logging is enabled by default, so there is no need to pass
+`-printtoconsole`. The example above shows how to forward additional
+arguments after `--`, in this case enabling the `sv2` debug category.
 
 Running `test_sv2` creates a temporary working (data) directory with a randomly
 generated pathname within `test_common bitcoin/`, which in turn is within

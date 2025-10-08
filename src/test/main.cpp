@@ -32,8 +32,8 @@ std::function<void(const std::string&)> G_TEST_LOG_FUN = [](const std::string& s
 /**
  * Retrieve the command line arguments from boost.
  * Allows usage like:
- * `test_sv2 --run_test="net_tests/cnode_listen_port" -- -checkaddrman=1 -printtoconsole=1`
- * which would return `["-checkaddrman=1", "-printtoconsole=1"]`.
+ * `test_sv2 --run_test="net_tests/cnode_listen_port" -- -checkaddrman=1 -debug=sv2`
+ * which would return `["-checkaddrman=1", "-debug=sv2"]`.
  */
 std::function<std::vector<const char*>()> G_TEST_COMMAND_LINE_ARGUMENTS = []() {
     std::vector<const char*> args;

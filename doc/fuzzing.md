@@ -79,7 +79,7 @@ of the test. Just make sure to use double-dash to distinguish them from the
 fuzzer's own arguments:
 
 ```sh
-$ FUZZ=address_deserialize_v2 build_fuzz/bin/fuzz -runs=1 fuzz_corpora/address_deserialize_v2 --checkaddrman=5 --printtoconsole=1
+$ FUZZ=address_deserialize_v2 build_fuzz/bin/fuzz -runs=1 fuzz_corpora/address_deserialize_v2 --checkaddrman=5
 ```
 
 ## Fuzzing corpora
@@ -273,7 +273,7 @@ To run the SV2 noise roundtrip target with visible logs during a short run:
 
 ```sh
 $ FUZZ=sv2_noise_cipher_roundtrip \
-   build_fuzz/bin/fuzz -runs=1000 -- --debug=sv2 --loglevel=sv2:trace --printtoconsole=1
+   build_fuzz/bin/fuzz -runs=1000 -- --debug=sv2 --loglevel=sv2:trace
 ```
 
 Alternatively, you can use environment variables to enable logs without passing `--` arguments:

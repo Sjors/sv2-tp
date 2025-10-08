@@ -25,7 +25,7 @@ namespace {
 void Initialize()
 {
     // Add test context for debugging. Usage:
-    // --debug=sv2 --loglevel=sv2:trace --printtoconsole=1
+    // --debug=sv2 --loglevel=sv2:trace
     static const auto testing_setup = std::make_unique<const Sv2BasicTestingSetup>();
 
     // Optional: enable console logging when requested via double-dash args.
@@ -38,7 +38,7 @@ void Initialize()
         for (const char* arg : G_TEST_COMMAND_LINE_ARGUMENTS()) {
             if (!arg) continue;
             std::string_view s{arg};
-            // Accept both forms: --printtoconsole and --printtoconsole=1
+            // Accept both forms in case a caller wants to force console logging explicitly.
             if (s == "--printtoconsole" || s == "--printtoconsole=1") want_console = true;
             if (s == "--debug=sv2" || s == "--debug=1" || s == "--debug=all") want_sv2_debug = true;
             if (s == "--loglevel=sv2:trace" || s == "--loglevel=trace") want_sv2_trace = true;
