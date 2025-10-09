@@ -165,6 +165,16 @@ if(BUILD_FOR_FUZZING)
   endif()
 endif()
 
+# If reconfiguring a non-fuzz build in a binary directory that previously had
+# BUILD_FOR_FUZZING=ON (which forces ENABLE_IPC=OFF), restore ENABLE_IPC=ON
+# unless the user has explicitly specified a value for it on the command line
+# or in the cache prior to this configure. This avoids stale cache values from
+# causing confusing fatal errors when switching presets while reusing a build
+# directory.
+if(NOT BUILD_FOR_FUZZING AND NOT "ENABLE_IPC" IN_LIST precious_variables)
+  set(ENABLE_IPC ON CACHE BOOL "Build IPC (libmultiprocess) components." FORCE)
+endif()
+
 # Disallow disabling IPC outside of fuzz-only builds to prevent breaking normal
 # targets that depend on IPC. Fuzz builds already turn off executables/tests.
 if(NOT ENABLE_IPC AND NOT BUILD_FOR_FUZZING)
@@ -291,47 +301,55 @@ target_link_libraries(core_interface INTERFACE
 add_library(sanitize_interface INTERFACE)
 target_link_libraries(core_interface INTERFACE sanitize_interface)
 if(SANITIZERS)
-  # Transform list of sanitizers into -fsanitize flags, replacing "fuzzer" with
-  # "fuzzer-no-link" in sanitize_interface flags, and moving "fuzzer" to
-  # fuzzer_interface flags. If -DSANITIZERS=fuzzer is specified, the fuzz test
-  # binary should be built with -fsanitize=fuzzer (so it can use libFuzzer's
-  # main function), but libraries should be built with -fsanitize=fuzzer-no-link
-  # (so they can be linked into other executables that have their own main
-  # functions).
-  string(REGEX REPLACE "(^|,)fuzzer($|,)" "\\1fuzzer-no-link\\2" sanitize_opts "${SANITIZERS}")
-  set(fuzz_flag "")
-  if(NOT sanitize_opts STREQUAL SANITIZERS)
-    set(fuzz_flag "-fsanitize=fuzzer")
-  endif()
+  # Special handling for "coverage": OSS-Fuzz (and some CI setups) provide
+  # the correct coverage instrumentation flags via environment/toolchain
+  # (e.g. -fsanitize-coverage, -fprofile-instr-generate, etc.). The flag
+  # "-fsanitize=coverage" is not valid and would fail the compile test.
+  if(SANITIZERS STREQUAL "coverage" OR SANITIZERS MATCHES "(^|,)coverage($|,)")
+    message(STATUS "Coverage build detected (SANITIZERS='${SANITIZERS}'): skipping -fsanitize checks and relying on toolchain-provided coverage flags.")
+  else()
+    # Transform list of sanitizers into -fsanitize flags, replacing "fuzzer" with
+    # "fuzzer-no-link" in sanitize_interface flags, and moving "fuzzer" to
+    # fuzzer_interface flags. If -DSANITIZERS=fuzzer is specified, the fuzz test
+    # binary should be built with -fsanitize=fuzzer (so it can use libFuzzer's
+    # main function), but libraries should be built with -fsanitize=fuzzer-no-link
+    # (so they can be linked into other executables that have their own main
+    # functions).
+    string(REGEX REPLACE "(^|,)fuzzer($|,)" "\\1fuzzer-no-link\\2" sanitize_opts "${SANITIZERS}")
+    set(fuzz_flag "")
+    if(NOT sanitize_opts STREQUAL SANITIZERS)
+      set(fuzz_flag "-fsanitize=fuzzer")
+    endif()
 
-  # First check if the compiler accepts flags. If an incompatible pair like
-  # -fsanitize=address,thread is used here, this check will fail. This will also
-  # fail if a bad argument is passed, e.g. -fsanitize=undfeined
-  try_append_cxx_flags("-fsanitize=${sanitize_opts}" TARGET sanitize_interface
-    RESULT_VAR cxx_supports_sanitizers
-    SKIP_LINK
-  )
-  if(NOT cxx_supports_sanitizers)
-    message(FATAL_ERROR "Compiler did not accept requested flags.")
-  endif()
+    # First check if the compiler accepts flags. If an incompatible pair like
+    # -fsanitize=address,thread is used here, this check will fail. This will also
+    # fail if a bad argument is passed, e.g. -fsanitize=undfeined
+    try_append_cxx_flags("-fsanitize=${sanitize_opts}" TARGET sanitize_interface
+      RESULT_VAR cxx_supports_sanitizers
+      SKIP_LINK
+    )
+    if(NOT cxx_supports_sanitizers)
+      message(FATAL_ERROR "Compiler did not accept requested flags.")
+    endif()
 
-  # Some compilers (e.g. GCC) require additional libraries like libasan,
-  # libtsan, libubsan, etc. Make sure linking still works with the sanitize
-  # flag. This is a separate check so we can give a better error message when
-  # the sanitize flags are supported by the compiler but the actual sanitizer
-  # libs are missing.
-  try_append_linker_flag("-fsanitize=${sanitize_opts}" VAR SANITIZER_LDFLAGS
-    SOURCE "
-      #include <cstdint>
-      #include <cstddef>
-      extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) { return 0; }
-      int main() { return 0; }
-    "
-    RESULT_VAR linker_supports_sanitizers
-    NO_CACHE_IF_FAILED
-  )
-  if(NOT linker_supports_sanitizers)
-    message(FATAL_ERROR "Linker did not accept requested flags, you are missing required libraries.")
+    # Some compilers (e.g. GCC) require additional libraries like libasan,
+    # libtsan, libubsan, etc. Make sure linking still works with the sanitize
+    # flag. This is a separate check so we can give a better error message when
+    # the sanitize flags are supported by the compiler but the actual sanitizer
+    # libs are missing.
+    try_append_linker_flag("-fsanitize=${sanitize_opts}" VAR SANITIZER_LDFLAGS
+      SOURCE "
+        #include <cstdint>
+        #include <cstddef>
+        extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) { return 0; }
+        int main() { return 0; }
+      "
+      RESULT_VAR linker_supports_sanitizers
+      NO_CACHE_IF_FAILED
+    )
+    if(NOT linker_supports_sanitizers)
+      message(FATAL_ERROR "Linker did not accept requested flags, you are missing required libraries.")
+    endif()
   endif()
 endif()
 target_link_options(sanitize_interface INTERFACE ${SANITIZER_LDFLAGS})
