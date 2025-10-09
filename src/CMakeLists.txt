@@ -15,9 +15,11 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 # These need to be included before CMAKE_*_OUTPUT_DIRECTORY variables
 # are set, so output locations of subproject tests and libraries are
 # not overridden.
-if (NOT WITH_EXTERNAL_LIBMULTIPROCESS)
-  include(../cmake/libmultiprocess.cmake)
-  add_libmultiprocess(ipc/libmultiprocess)
+if(ENABLE_IPC)
+  if (NOT WITH_EXTERNAL_LIBMULTIPROCESS)
+    include(../cmake/libmultiprocess.cmake)
+    add_libmultiprocess(ipc/libmultiprocess)
+  endif()
 endif()
 include(../cmake/secp256k1.cmake)
 add_secp256k1(secp256k1)
@@ -50,7 +52,9 @@ add_dependencies(bitcoin_clientversion generate_build_info)
 
 add_subdirectory(crypto)
 add_subdirectory(util)
-add_subdirectory(ipc)
+if(ENABLE_IPC)
+  add_subdirectory(ipc)
+endif()
 add_subdirectory(sv2)
 
 ## bitcoin_consensus library is not needed for sv2-tp; omit it entirely.
@@ -102,7 +106,7 @@ if(BUILD_MINE)
   add_windows_application_manifest(sv2-tp)
   target_link_libraries(sv2-tp
     core_interface
-    bitcoin_ipc
+    $<$<BOOL:${ENABLE_IPC}>:bitcoin_ipc>
     bitcoin_sv2 # bitcoin_common now transitively provided PUBLIC by bitcoin_sv2
   )
   install_binary_component(sv2-tp HAS_MANPAGE)

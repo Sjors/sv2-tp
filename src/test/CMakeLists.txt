@@ -17,7 +17,7 @@ target_link_libraries(test_sv2
     core_interface
     Boost::headers
     bitcoin_sv2
-    bitcoin_ipc
+    $<$<BOOL:${ENABLE_IPC}>:bitcoin_ipc>
 )
 
 target_sources(test_sv2
@@ -35,16 +35,21 @@ PRIVATE
 )
 
 # Ensure Cap'n Proto generated headers (e.g. src/ipc/capnp/init.capnp.h) are
-# generated before compiling tests that include them directly.
-if(TARGET bitcoin_ipc_headers)
-  add_dependencies(test_sv2 bitcoin_ipc_headers)
+# generated before compiling tests that include them directly. Only applies
+# when IPC is enabled.
+if(ENABLE_IPC)
+  if(TARGET bitcoin_ipc_headers)
+    add_dependencies(test_sv2 bitcoin_ipc_headers)
+  endif()
+  add_dependencies(test_sv2 bitcoin_ipc)
 endif()
-add_dependencies(test_sv2 bitcoin_ipc)
 
-# Allow direct includes of generated headers like <src/ipc/...>
-target_include_directories(test_sv2 PRIVATE ${CMAKE_BINARY_DIR})
+# Allow direct includes of generated headers like <src/ipc/...> when IPC is enabled
+if(ENABLE_IPC)
+  target_include_directories(test_sv2 PRIVATE ${CMAKE_BINARY_DIR})
+endif()
 
-if(TARGET Libmultiprocess::multiprocess)
+if(ENABLE_IPC AND TARGET Libmultiprocess::multiprocess)
   # test_sv2 directly includes generated IPC headers (init.capnp.h) which in turn
   # include libmultiprocess headers (mp/proxy.capnp.h). When using external
   # libmultiprocess, link the imported target to provide the necessary include paths.

@@ -41,7 +41,8 @@
         "CMAKE_C_FLAGS": "-ftrivial-auto-var-init=pattern",
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_CXX_FLAGS": "-ftrivial-auto-var-init=pattern",
-        "SANITIZERS": "undefined,address,fuzzer"
+        "SANITIZERS": "undefined,address,fuzzer",
+        "ENABLE_IPC": "OFF"
       }
     },
     {
@@ -52,7 +53,8 @@
         "BUILD_FOR_FUZZING": "ON",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "SANITIZERS": "fuzzer"
+        "SANITIZERS": "fuzzer",
+        "ENABLE_IPC": "OFF"
       }
     },
     {

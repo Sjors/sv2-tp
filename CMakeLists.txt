@@ -97,6 +97,11 @@ include(CMakeDependentOption)
 
 option(BUILD_TESTS "Build test_sv2 and other unit test executables." ON)
 
+# Enable/disable IPC (Cap'n Proto + libmultiprocess) support. This must remain
+# enabled for normal builds. It may be disabled for fuzz-only builds to avoid
+# pulling in the IPC toolchain.
+option(ENABLE_IPC "Build IPC (libmultiprocess) components." ON)
+
 option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting executables." OFF)
 option(WERROR "Treat compiler warnings as errors." OFF)
 option(WITH_CCACHE "Attempt to use ccache for compiling." ON)
@@ -151,6 +156,19 @@ if(BUILD_FOR_FUZZING)
   target_compile_definitions(core_interface INTERFACE
     FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
   )
+
+  # Unless the user explicitly provided ENABLE_IPC on the command line or cache
+  # before configuration (tracked in precious_variables snapshot), disable IPC
+  # when building fuzz-only to avoid pulling libmultiprocess/Cap'n Proto.
+  if(NOT "ENABLE_IPC" IN_LIST precious_variables)
+    set(ENABLE_IPC OFF CACHE BOOL "Build IPC (libmultiprocess) components." FORCE)
+  endif()
+endif()
+
+# Disallow disabling IPC outside of fuzz-only builds to prevent breaking normal
+# targets that depend on IPC. Fuzz builds already turn off executables/tests.
+if(NOT ENABLE_IPC AND NOT BUILD_FOR_FUZZING)
+  message(FATAL_ERROR "ENABLE_IPC=OFF is only supported when BUILD_FOR_FUZZING=ON.")
 endif()
 
 include(TryAppendCXXFlags)
@@ -571,10 +589,14 @@ message("=================")
 message("Executables:")
 message("  sv2-tp .............................. ${BUILD_MINE}")
 message("Libraries:")
-if (WITH_EXTERNAL_LIBMULTIPROCESS)
-  set(ipc_status "ON (with external libmultiprocess)")
+if(ENABLE_IPC)
+  if (WITH_EXTERNAL_LIBMULTIPROCESS)
+    set(ipc_status "ON (with external libmultiprocess)")
+  else()
+    set(ipc_status ON)
+  endif()
 else()
-  set(ipc_status ON)
+  set(ipc_status OFF)
 endif()
 message("  IPC ................................. ${ipc_status}")
 message("Optional features:")
