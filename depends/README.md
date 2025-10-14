@@ -78,7 +78,6 @@ The following can be set when running make: `make FOO=bar`
 - `C_STANDARD`: Set the C standard version used. Defaults to `c11`.
 - `CXX_STANDARD`: Set the C++ standard version used. Defaults to `c++20`.
 - `NO_BOOST`: Don't download/build/cache Boost
-- `NO_USDT`: Don't download/build/cache packages needed for enabling USDT tracepoints
 - `NO_IPC`: Don't build Cap’n Proto and libmultiprocess packages. Default on Windows.
 - `DEBUG`: Disable some optimizations and enable more runtime checking
 - `HOST_ID_SALT`: Optional salt to use when generating host package ids
@@ -88,8 +87,8 @@ The following can be set when running make: `make FOO=bar`
   of build error. After successful build log files are moved along with package archives
 - `LTO`: Enable options needed for LTO. Does not add `-flto` related options to *FLAGS.
 
-If some packages are not built, for example `make NO_USDT=1`, the appropriate CMake cache
-variables will be set when generating the Bitcoin Core buildsystem. In this case, `-DENABLE_USDT=OFF`.
+If some packages are not built, the appropriate CMake cache variables will be set when generating
+the Bitcoin Core buildsystem.
 
 ## Cross compilation
 
