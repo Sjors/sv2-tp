@@ -57,7 +57,7 @@ This table describes the files installed by Bitcoin Core across different platfo
 | **Path**                                                   | **Description**                                                             |
 |------------------------------------------------------------|-----------------------------------------------------------------------------|
 | [README.md](README.md)                                      | Project information and instructions                                        |
-| bitcoin.conf                                               | [Generated](../contrib/devtools/gen-bitcoin-conf.sh) configuration file     |
+| sv2-tp.conf                                                | [Generated](../contrib/devtools/gen-conf.sh) configuration file             |
 | test_sv2                                                   | Unit test binary                                                            |
 | share/man/man1/                                            | Man pages for command-line tools like `sv2-tp`                              |
 

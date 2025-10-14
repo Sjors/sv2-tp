@@ -134,11 +134,11 @@ For example:
 BUILDDIR=$PWD/my-build-dir contrib/devtools/gen-manpages.py
 ```
 
-gen-bitcoin-conf.sh
-===================
+gen-conf.sh
+===========
 
-Generates a bitcoin.conf file in `share/examples/` by parsing the output from `bitcoind --help`. This script is run during the
-release process to include a bitcoin.conf with the release binaries and can also be run by users to generate a file locally.
+Generates a sv2-tp.conf file in `share/examples/` by parsing the output from `sv2-tp --help`. This script is run during the
+release process to include a sv2-tp.conf with the release binaries and can also be run by users to generate a file locally.
 When generating a file as part of the release process, make sure to commit the changes after running the script.
 
 This script assumes a build directory named `build` as suggested by example build documentation.
@@ -146,7 +146,7 @@ To use it with a different build directory, set `BUILDDIR`.
 For example:
 
 ```bash
-BUILDDIR=$PWD/my-build-dir contrib/devtools/gen-bitcoin-conf.sh
+BUILDDIR=$PWD/my-build-dir contrib/devtools/gen-conf.sh
 ```
 
 circular-dependencies.py
