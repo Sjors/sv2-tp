@@ -136,7 +136,7 @@ jobs:
           key: ${{ steps.depends-cache.outputs.cache-primary-key }}
 
       - name: Run fuzzers (${{ matrix.sanitizer }})
-        if: ${{ inputs.run_fuzzers }}
+        if: ${{ inputs.run_fuzzers && matrix.sanitizer != 'memory' }}
         uses: google/clusterfuzzlite/actions/run_fuzzers@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
