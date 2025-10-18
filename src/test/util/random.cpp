@@ -2,15 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <test/util/clusterfuzzlite.h>
 #include <test/util/random.h>
 
 #include <logging.h>
 #include <random.h>
 #include <uint256.h>
 #include <util/check.h>
+#include <util/sanitizer.h>
 
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 
 std::atomic<bool> g_seeded_g_prng_zero{false};
 
@@ -20,6 +23,8 @@ void SeedRandomStateForTest(SeedRand seedtype)
 {
     constexpr auto RANDOM_CTX_SEED{"RANDOM_CTX_SEED"};
 
+    using util::sanitizer::GetEnvUnpoisoned;
+
     // Do this once, on the first call, regardless of seedtype, because once
     // MakeRandDeterministicDANGEROUS is called, the output of GetRandHash is
     // no longer truly random. It should be enough to get the seed once for the
@@ -27,7 +32,7 @@ void SeedRandomStateForTest(SeedRand seedtype)
     static const auto g_ctx_seed = []() -> std::optional<uint256> {
         if (EnableFuzzDeterminism()) return {};
         // If RANDOM_CTX_SEED is set, use that as seed.
-        if (const char* num{std::getenv(RANDOM_CTX_SEED)}) {
+        if (const char* num{GetEnvUnpoisoned(RANDOM_CTX_SEED)}) {
             if (auto num_parsed{uint256::FromUserHex(num)}) {
                 return *num_parsed;
             } else {
@@ -44,7 +49,14 @@ void SeedRandomStateForTest(SeedRand seedtype)
         Assert(g_seeded_g_prng_zero); // Only SeedRandomStateForTest(SeedRand::ZEROS) is allowed in fuzz tests
         Assert(!g_used_g_prng);       // The global PRNG must not have been used before SeedRandomStateForTest(SeedRand::ZEROS)
     }
-    const uint256& seed{seedtype == SeedRand::FIXED_SEED ? g_ctx_seed.value() : uint256::ZERO};
-    LogInfo("Setting random seed for current tests to %s=%s\n", RANDOM_CTX_SEED, seed.GetHex());
+    uint256 seed{};
+    seed.SetNull();
+    if (seedtype == SeedRand::FIXED_SEED) {
+        Assert(g_ctx_seed.has_value());
+        seed = *g_ctx_seed;
+    }
+    if (!RunningUnderClusterFuzzLite()) {
+        LogInfo("Setting random seed for current tests to %s=%s\n", RANDOM_CTX_SEED, seed.GetHex());
+    }
     MakeRandDeterministicDANGEROUS(seed);
 }
