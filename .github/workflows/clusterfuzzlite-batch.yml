@@ -19,5 +19,5 @@ jobs:
       job_name: Batch fuzzing
       run_mode: batch
       # Allow longer batch runs to expand coverage between pushes.
-      fuzz_seconds: "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.fuzz_seconds) || '3600' }}"
+      fuzz_seconds: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.fuzz_seconds != '' && fromJSON(github.event.inputs.fuzz_seconds) || 3600 }}
       output_sarif: true
