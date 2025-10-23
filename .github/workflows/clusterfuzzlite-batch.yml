@@ -4,11 +4,11 @@ on:
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
-      inputs:
-        fuzz_minutes:
-          description: 'Minutes to fuzz (overrides default 60)'
-          required: false
-          default: '60'
+    inputs:
+      fuzz_seconds:
+        description: 'Fuzzing duration in seconds'
+        required: false
+        default: '3600'
 
 permissions: read-all
 
@@ -19,5 +19,5 @@ jobs:
       job_name: Batch fuzzing
       run_mode: batch
       # Allow longer batch runs to expand coverage between pushes.
-      fuzz_seconds: 3600
+      fuzz_seconds: ${{ github.event_name == 'workflow_dispatch' && inputs.fuzz_seconds || 3600 }}
       output_sarif: true
