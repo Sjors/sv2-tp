@@ -1,0 +1,16 @@
+name: ClusterFuzzLite continuous builds
+
+on:
+  push:
+    branches:
+      - master
+
+permissions: read-all
+
+jobs:
+  build:
+    uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    with:
+      job_name: Continuous build
+      run_fuzzers: false
+      upload_build: true

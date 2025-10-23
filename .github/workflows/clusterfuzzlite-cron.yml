@@ -1,0 +1,25 @@
+name: ClusterFuzzLite corpus maintenance
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+
+permissions: read-all
+
+jobs:
+  prune:
+    uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    with:
+      job_name: Corpus prune
+      run_mode: prune
+      fuzz_seconds: 600
+      output_sarif: true
+  coverage:
+    uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    with:
+      job_name: Coverage
+      sanitizers_json: '{"sanitizer":["coverage"]}'
+      run_base_install: false
+      run_mode: coverage
+      fuzz_seconds: 600
+      output_sarif: true

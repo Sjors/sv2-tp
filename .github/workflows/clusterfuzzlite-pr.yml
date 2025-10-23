@@ -1,0 +1,18 @@
+name: ClusterFuzzLite PR fuzzing
+
+on:
+  pull_request:
+    paths:
+      - '**'
+
+permissions: read-all
+
+jobs:
+  pr:
+    uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    with:
+      job_name: PR fuzzing
+      run_mode: code-change
+      # PR fuzzing should take about as long as the longest other CI job
+      fuzz_seconds: 480
+      output_sarif: true

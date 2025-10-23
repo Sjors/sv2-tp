@@ -1,0 +1,17 @@
+name: ClusterFuzzLite batch fuzzing
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+
+permissions: read-all
+
+jobs:
+  batch:
+    uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    with:
+      job_name: Batch fuzzing
+      run_mode: batch
+      # Allow longer batch runs to expand coverage between pushes.
+      fuzz_seconds: 3600
+      output_sarif: true
