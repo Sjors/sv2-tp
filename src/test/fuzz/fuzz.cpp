@@ -40,6 +40,8 @@ extern const std::function<void(const std::string&)> G_TEST_LOG_FUN{};
 
 const TranslateFn G_TRANSLATION_FUN{nullptr};
 
+static constexpr char FuzzTargetPlaceholder[] = "d6f1a2b39c4e5d7a8b9c0d1e2f30415263748596a1b2c3d4e5f60718293a4b5c6d7e8f90112233445566778899aabbccddeeff00fedcba9876543210a0b1c2d3";
+
 /**
  * A copy of the command line arguments that start with `--`.
  * First `LLVMFuzzerInitialize()` is called, which saves the arguments to `g_args`.
@@ -115,15 +117,24 @@ static void initialize()
         return WrappedGetAddrInfo(name, false);
     };
 
+    const char* env_fuzz{std::getenv("FUZZ")};
+    const char* env_print_targets{std::getenv("PRINT_ALL_FUZZ_TARGETS_AND_ABORT")};
+    const char* env_write_targets{std::getenv("WRITE_ALL_FUZZ_TARGETS_AND_ABORT")};
+    const bool listing_mode{env_print_targets != nullptr || env_write_targets != nullptr};
+    static std::string g_copy;
+    g_copy.assign((env_fuzz != nullptr && env_fuzz[0] != '\0') ? env_fuzz : FuzzTargetPlaceholder);
+    g_fuzz_target = std::string_view{g_copy.data(), g_copy.size()};
+
     bool should_exit{false};
-    if (std::getenv("PRINT_ALL_FUZZ_TARGETS_AND_ABORT")) {
+    if (env_print_targets != nullptr) {
         for (const auto& [name, t] : FuzzTargets()) {
             if (t.opts.hidden) continue;
             std::cout << name << std::endl;
         }
         should_exit = true;
     }
-    if (const char* out_path = std::getenv("WRITE_ALL_FUZZ_TARGETS_AND_ABORT")) {
+    if (env_write_targets != nullptr) {
+        const char* out_path = env_write_targets;
         std::cout << "Writing all fuzz target names to '" << out_path << "'." << std::endl;
         std::ofstream out_stream{out_path, std::ios::binary};
         for (const auto& [name, t] : FuzzTargets()) {
@@ -135,18 +146,15 @@ static void initialize()
     if (should_exit) {
         std::exit(EXIT_SUCCESS);
     }
-    if (const auto* env_fuzz{std::getenv("FUZZ")}) {
-        // To allow for easier fuzz executable binary modification,
-        static std::string g_copy{env_fuzz}; // create copy to avoid compiler optimizations, and
-        g_fuzz_target = g_copy.c_str();      // strip string after the first null-char.
-    } else {
-        std::cerr << "Must select fuzz target with the FUZZ env var." << std::endl;
-        std::cerr << "Hint: Set the PRINT_ALL_FUZZ_TARGETS_AND_ABORT=1 env var to see all compiled targets." << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
+
     const auto it = FuzzTargets().find(g_fuzz_target);
     if (it == FuzzTargets().end()) {
-        std::cerr << "No fuzz target compiled for " << g_fuzz_target << "." << std::endl;
+        if (!listing_mode && (env_fuzz == nullptr || env_fuzz[0] == '\0')) {
+            std::cerr << "Must select fuzz target with the FUZZ env var." << std::endl;
+            std::cerr << "Hint: Set the PRINT_ALL_FUZZ_TARGETS_AND_ABORT=1 env var to see all compiled targets." << std::endl;
+        } else {
+            std::cerr << "No fuzz target compiled for " << g_fuzz_target << "." << std::endl;
+        }
         std::exit(EXIT_FAILURE);
     }
     if constexpr (!G_FUZZING_BUILD && !G_ABORT_ON_FAILED_ASSUME) {
