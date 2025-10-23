@@ -3,6 +3,12 @@ name: ClusterFuzzLite batch fuzzing
 on:
   schedule:
     - cron: '0 */12 * * *'
+  workflow_dispatch:
+      inputs:
+        fuzz_minutes:
+          description: 'Minutes to fuzz (overrides default 60)'
+          required: false
+          default: '60'
 
 permissions: read-all
 
