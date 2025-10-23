@@ -48,15 +48,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare ccache directory
-        run: mkdir -p .cfl-ccache
-
       - name: ClusterFuzzLite base install (${{ matrix.sanitizer }})
         if: ${{ inputs.run_base_install }}
         run: ./.clusterfuzzlite/run-cfl-helper.sh base-install "${{ matrix.sanitizer }}"
         shell: bash
-        env:
-          CCACHE_MAXSIZE: 500M
 
       - name: Build fuzzers (${{ matrix.sanitizer }})
         uses: google/clusterfuzzlite/actions/build_fuzzers@v1
@@ -68,9 +63,6 @@ jobs:
           storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/Sjors/sv2-tp-fuzz-storage.git
           storage-repo-branch: master
           storage-repo-branch-coverage: gh-pages
-        env:
-          CCACHE_DIR: /workspace/.cfl-ccache
-          CCACHE_MAXSIZE: 500M
 
       - name: Detect llvm-symbolizer (${{ matrix.sanitizer }})
         if: ${{ inputs.run_fuzzers }}
@@ -81,8 +73,6 @@ jobs:
           echo "path=$path" >> "$GITHUB_OUTPUT"
         shell: bash
         env:
-          CCACHE_DIR: /workspace/.cfl-ccache
-          CCACHE_MAXSIZE: 500M
           LLVM_SYMBOLIZER_PATH: /usr/bin/llvm-symbolizer
 
       - name: Run fuzzers (${{ matrix.sanitizer }})
@@ -98,8 +88,6 @@ jobs:
           mode: ${{ inputs.run_mode }}
           output-sarif: ${{ inputs.output_sarif }}
         env:
-          CCACHE_DIR: /workspace/.cfl-ccache
-          CCACHE_MAXSIZE: 500M
           LLVM_SYMBOLIZER_PATH: ${{ steps.detect-symbolizer.outputs.path }}
           ASAN_SYMBOLIZER_PATH: ${{ steps.detect-symbolizer.outputs.path }}
           MSAN_SYMBOLIZER_PATH: ${{ steps.detect-symbolizer.outputs.path }}

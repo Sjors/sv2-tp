@@ -23,9 +23,7 @@ shift 2 || true
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 APT_VER="$(cfl_apt_llvm_version)"
 
-mkdir -p "${ROOT_DIR}/.cfl-base" "${ROOT_DIR}/.cfl-ccache"
-
-CCACHE_DIR_IN_CONTAINER="${CCACHE_DIR:-/workspace/.cfl-ccache}"
+mkdir -p "${ROOT_DIR}/.cfl-base"
 
 docker_common=(
   --rm
@@ -37,11 +35,9 @@ docker_common=(
   -w /workspace
 )
 
-docker_common+=(
-  -v "${ROOT_DIR}/.cfl-ccache:${CCACHE_DIR_IN_CONTAINER}"
-  -e "CCACHE_DIR=${CCACHE_DIR_IN_CONTAINER}"
-)
-
+if [ -n "${CCACHE_DIR:-}" ]; then
+  docker_common+=(-e "CCACHE_DIR=${CCACHE_DIR}")
+fi
 if [ -n "${CCACHE_MAXSIZE:-}" ]; then
   docker_common+=(-e "CCACHE_MAXSIZE=${CCACHE_MAXSIZE}")
 fi
