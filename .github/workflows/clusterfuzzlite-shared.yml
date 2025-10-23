@@ -27,6 +27,9 @@ on:
       run_base_install:
         type: boolean
         default: true
+    secrets:
+      PERSONAL_ACCESS_TOKEN:
+        required: false
 
 permissions: read-all
 

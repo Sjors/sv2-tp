@@ -10,6 +10,7 @@ permissions: read-all
 jobs:
   pr:
     uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    secrets: inherit
     with:
       job_name: PR fuzzing
       run_mode: code-change

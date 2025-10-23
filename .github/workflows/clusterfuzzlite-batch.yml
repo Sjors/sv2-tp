@@ -15,6 +15,7 @@ permissions: read-all
 jobs:
   batch:
     uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    secrets: inherit
     with:
       job_name: Batch fuzzing
       run_mode: batch

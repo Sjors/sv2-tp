@@ -9,6 +9,7 @@ permissions: read-all
 jobs:
   prune:
     uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    secrets: inherit
     with:
       job_name: Corpus prune
       run_mode: prune
@@ -16,6 +17,7 @@ jobs:
       output_sarif: true
   coverage:
     uses: ./.github/workflows/clusterfuzzlite-shared.yml
+    secrets: inherit
     with:
       job_name: Coverage
       sanitizers_json: '{"sanitizer":["coverage"]}'
