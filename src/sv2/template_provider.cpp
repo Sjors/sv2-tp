@@ -233,7 +233,9 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 
                 // The node enforces a minimum of 2000, though not for IPC so we could go a bit
                 // lower, but let's not...
-                options.block_reserved_weight = 2000 + client->m_coinbase_tx_outputs_size * 4;
+                const size_t minimum_coinbase_weight{2000};
+                const size_t coinbase_weight{client->m_coinbase_tx_outputs_size * 4};
+                options.block_reserved_weight = std::max(minimum_coinbase_weight, coinbase_weight);
             }
             return true;
         };
