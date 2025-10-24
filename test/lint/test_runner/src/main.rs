@@ -643,6 +643,7 @@ fn lint_markdown() -> LintResult {
     let bin_name = "mlc";
     let mut md_ignore_paths = get_subtrees();
     md_ignore_paths.push("./doc/README_doxygen.md");
+    md_ignore_paths.push("./.clusterfuzzlite/index.html");
     let md_ignore_path_str = md_ignore_paths.join(",");
 
     let mut cmd = Command::new(bin_name);

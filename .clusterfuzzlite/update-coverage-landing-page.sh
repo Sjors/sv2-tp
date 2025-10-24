@@ -17,18 +17,7 @@ trap 'rm -rf "$tmpdir"' EXIT
 
 git clone --depth 1 --branch gh-pages "$STORAGE_REPO" "$tmpdir"
 
-cat <<'HTML' >"$tmpdir/index.html"
-<!doctype html>
-<meta charset="utf-8">
-<title>sv2-tp ClusterFuzzLite coverage</title>
-<h1>sv2-tp ClusterFuzzLite coverage</h1>
-<p>The latest HTML report is published under <code>coverage/latest/report/</code>.</p>
-<ul>
-  <li><a href="coverage/latest/report/linux/index.html">Latest coverage report</a></li>
-  <li><a href="coverage/latest/report_by_target/">Per-target reports</a></li>
-  <li><a href="coverage/latest/report/linux/summary.json">Coverage summary (JSON)</a></li>
-</ul>
-HTML
+install -m 0644 ".clusterfuzzlite/index.html" "$tmpdir/index.html"
 
 touch "$tmpdir/.nojekyll"
 git -C "$tmpdir" add index.html .nojekyll
