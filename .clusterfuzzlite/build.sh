@@ -121,3 +121,18 @@ if [ -d "$OUT" ]; then
   echo "ClusterFuzzLite bundle tree (find $OUT -maxdepth 2):"
   find "$OUT" -maxdepth 2 -print | sort
 fi
+
+# Mirror sources under $OUT for llvm-cov HTML generation.
+OUT_SRC_ROOT="$OUT/src/sv2-tp"
+mkdir -p "$OUT_SRC_ROOT"
+rsync -a \
+  --delete \
+  --exclude '.git/' \
+  --exclude '.github/' \
+  --exclude '.clusterfuzzlite/' \
+  --exclude 'build_fuzz/' \
+  --exclude 'depends/' \
+  --exclude 'coverage-html/' \
+  --exclude 'coverage-out/' \
+  --exclude 'coverage-storage/' \
+  ./ "$OUT_SRC_ROOT/"
