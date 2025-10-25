@@ -53,6 +53,12 @@ if [ "$SANITIZER_CHOICE" = "memory" ]; then
   EXTRA_CMAKE_ARGS+=("-DAPPEND_CPPFLAGS=-U_FORTIFY_SOURCE")
 fi
 
+if [ "$SANITIZER_CHOICE" = "coverage" ]; then
+  export CFLAGS="${CFLAGS} -fprofile-instr-generate -fcoverage-mapping"
+  export CXXFLAGS="${CXXFLAGS} -fprofile-instr-generate -fcoverage-mapping"
+  export LDFLAGS="${LDFLAGS} -fprofile-instr-generate"
+fi
+
 cmake -B build_fuzz \
   --toolchain "depends/${BUILD_TRIPLET}/toolchain.cmake" \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
