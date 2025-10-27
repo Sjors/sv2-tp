@@ -72,8 +72,19 @@ jobs:
         id: detect-symbolizer
         run: |
           set -euo pipefail
-          path="$(./.clusterfuzzlite/run-cfl-helper.sh detect-symbolizer "${{ matrix.sanitizer }}")"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
+          # The helper may emit multiple lines (for example the image name if it
+          # triggers a docker pull). Capture everything for logging, then treat
+          # the last non-empty line as the resolved llvm-symbolizer path.
+          raw_output="$(./.clusterfuzzlite/run-cfl-helper.sh detect-symbolizer "${{ matrix.sanitizer }}")"
+          echo "detect-symbolizer raw output:"
+          printf '  %s\n' "$raw_output"
+          path="$(printf '%s\n' "$raw_output" | awk 'NF{last=$0} END{print last}')"
+          path="${path%$'\r'}"
+          if [[ -z "$path" ]]; then
+            echo "Failed to determine llvm-symbolizer path" >&2
+            exit 1
+          fi
+          printf 'path=%s\n' "$path" >> "$GITHUB_OUTPUT"
         shell: bash
         env:
           LLVM_SYMBOLIZER_PATH: /usr/bin/llvm-symbolizer
