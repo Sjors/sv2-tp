@@ -40,6 +40,11 @@ extern const std::function<void(const std::string&)> G_TEST_LOG_FUN{};
 
 const TranslateFn G_TRANSLATION_FUN{nullptr};
 
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((used))
+#endif
+static const char G_CFL_COVERAGE_MARKER[] = "LLVMFuzzerTestOneInput"; // Keep literal for ClusterFuzzLite harness probing.
+
 static constexpr char FuzzTargetPlaceholder[] = "d6f1a2b39c4e5d7a8b9c0d1e2f30415263748596a1b2c3d4e5f60718293a4b5c6d7e8f90112233445566778899aabbccddeeff00fedcba9876543210a0b1c2d3";
 
 /**
@@ -52,6 +57,7 @@ static constexpr char FuzzTargetPlaceholder[] = "d6f1a2b39c4e5d7a8b9c0d1e2f30415
 static std::vector<const char*> g_args;
 
 static void SetArgs(int argc, char** argv) {
+    g_args.clear();
     for (int i = 1; i < argc; ++i) {
         // Only take into account arguments that start with `--`. The others are for the fuzz engine:
         // `fuzz -runs=1 fuzz_corpora/address_deserialize_v2 --checkaddrman=5`
@@ -102,6 +108,7 @@ static void initialize()
     // - Randomness obtained before this call in g_rng_temp_path_init
     SeedRandomStateForTest(SeedRand::ZEROS);
 
+    (void)G_CFL_COVERAGE_MARKER; // Explicitly reference marker so it remains in optimized builds.
     // Set time to the genesis block timestamp for deterministic initialization.
     SetMockTime(1231006505);
 
@@ -235,6 +242,7 @@ extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv)
 #if defined(PROVIDE_FUZZ_MAIN_FUNCTION)
 int main(int argc, char** argv)
 {
+    SetArgs(argc, argv);
     initialize();
 #ifdef __AFL_LOOP
     // Enable AFL persistent mode. Requires compilation using afl-clang-fast++.
@@ -257,7 +265,11 @@ int main(int argc, char** argv)
     const auto start_time{Now<SteadySeconds>()};
     int tested = 0;
     for (int i = 1; i < argc; ++i) {
-        fs::path input_path(*(argv + i));
+        const char* arg = argv[i];
+        if (arg[0] == '-') {
+            continue; // Skip libFuzzer-style flags such as -merge=1 or -runs=0.
+        }
+        fs::path input_path{arg};
         if (fs::is_directory(input_path)) {
             std::vector<fs::path> files;
             for (fs::directory_iterator it(input_path); it != fs::directory_iterator(); ++it) {
