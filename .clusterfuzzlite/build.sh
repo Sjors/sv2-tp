@@ -26,6 +26,12 @@ export CPPFLAGS="${CPPFLAGS:-} -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_D
 
 FUZZ_LIBS_VALUE="$LIB_FUZZING_ENGINE"
 
+if [ "$SANITIZER_CHOICE" = "coverage" ]; then
+  export CFLAGS="${CFLAGS} -fprofile-instr-generate -fcoverage-mapping"
+  export CXXFLAGS="${CXXFLAGS} -fprofile-instr-generate -fcoverage-mapping"
+  export LDFLAGS="${LDFLAGS} -fprofile-instr-generate"
+fi
+
 (
   cd depends
   sed -i --regexp-extended '/.*rm -rf .*extract_dir.*/d' ./funcs.mk || true
