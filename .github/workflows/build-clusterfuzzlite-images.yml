@@ -1,0 +1,108 @@
+name: Build ClusterFuzzLite Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag-suffix:
+        description: Optional suffix appended to the llvm-22 tag (e.g. -rc1)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  OSS_FUZZ_REPO: Sjors/oss-fuzz
+  OSS_FUZZ_REF: 2025/10/coverage-debug
+  OSS_FUZZ_PATH: oss-fuzz
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout oss-fuzz helper repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.OSS_FUZZ_REPO }}
+          ref: ${{ env.OSS_FUZZ_REF }}
+          path: ${{ env.OSS_FUZZ_PATH }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Prepare image metadata
+        id: meta
+        run: |
+          owner="${{ github.repository_owner }}"
+          image_prefix="ghcr.io/${owner}/clusterfuzzlite"
+          suffix="${{ github.event.inputs.tag-suffix }}"
+          llvm_tag="llvm-22${suffix}"
+          echo "image_prefix=${image_prefix}" >> "$GITHUB_OUTPUT"
+          echo "llvm_tag=${llvm_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve image tags
+        id: tags
+        env:
+          LLVM_TAG: ${{ steps.meta.outputs.llvm_tag }}
+        run: |
+          tag="${LLVM_TAG:-llvm-22}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Build base-clang (linux/amd64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            -t "${{ steps.meta.outputs.image_prefix }}-base-clang:${{ steps.tags.outputs.tag }}" \
+            ${{ env.OSS_FUZZ_PATH }}/infra/base-images/base-clang
+
+      - name: Build base-runner (linux/amd64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --build-arg BASE_CLANG_IMAGE="${{ steps.meta.outputs.image_prefix }}-base-clang:${{ steps.tags.outputs.tag }}" \
+            -t "${{ steps.meta.outputs.image_prefix }}-base-runner:${{ steps.tags.outputs.tag }}" \
+            ${{ env.OSS_FUZZ_PATH }}/infra/base-images/base-runner
+
+      - name: Build cifuzz-base (linux/amd64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --build-arg BASE_RUNNER_IMAGE="${{ steps.meta.outputs.image_prefix }}-base-runner:${{ steps.tags.outputs.tag }}" \
+            -t "${{ steps.meta.outputs.image_prefix }}-cifuzz-base:${{ steps.tags.outputs.tag }}" \
+            ${{ env.OSS_FUZZ_PATH }}/infra/cifuzz/cifuzz-base
+
+      - name: Build run-fuzzers (linux/amd64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --push \
+            --build-arg CIFUZZ_BASE_IMAGE="${{ steps.meta.outputs.image_prefix }}-cifuzz-base:${{ steps.tags.outputs.tag }}" \
+            -t "${{ steps.meta.outputs.image_prefix }}-run-fuzzers:${{ steps.tags.outputs.tag }}" \
+            ${{ env.OSS_FUZZ_PATH }}/infra
+
+      - name: Summarize published images
+        run: |
+          tag="${{ steps.tags.outputs.tag }}"
+          cat <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          ## Published images
+          EOF
+          for name in base-clang base-runner cifuzz-base run-fuzzers; do
+            echo "- \t${{ steps.meta.outputs.image_prefix }}-${name}:${tag}" >> "$GITHUB_STEP_SUMMARY"
+          done
