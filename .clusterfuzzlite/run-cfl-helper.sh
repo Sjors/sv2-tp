@@ -65,7 +65,7 @@ case "${operation}" in
       -lc './ci/test/01_base_install.sh'
     ;;
   detect-symbolizer)
-    image='gcr.io/oss-fuzz-base/clusterfuzzlite-run-fuzzers:v1'
+    image='ghcr.io/sjors/clusterfuzzlite-run-fuzzers:llvm-22-debug'
     ensure_image_cached "$image"
     docker run \
       "${docker_common[@]}" \
