@@ -33,7 +33,6 @@ jobs:
     with:
       job_name: Coverage
       sanitizers_json: '{"sanitizer":["coverage"]}'
-      run_base_install: false
       run_mode: coverage
       fuzz_seconds: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.fuzz_seconds != '' && fromJSON(github.event.inputs.fuzz_seconds) || 600 }}
       output_sarif: true

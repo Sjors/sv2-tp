@@ -6,12 +6,9 @@ export LC_ALL=C
 set -o errexit -o nounset -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=cfl-common.sh
-source "${SCRIPT_DIR}/cfl-common.sh"
 
 if [ "${1:-}" = "" ] || [ "${2:-}" = "" ]; then
-  echo "Usage: $0 <operation> <sanitizer>" >&2
-  echo "  Supported operations: base-install, detect-symbolizer" >&2
+  echo "Usage: $0 detect-symbolizer <sanitizer>" >&2
   exit 1
 fi
 
@@ -21,7 +18,6 @@ shift 2 || true
 
 # Resolve repository root for Docker volume mounting.
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-APT_VER="$(cfl_apt_llvm_version)"
 
 mkdir -p "${ROOT_DIR}/.cfl-base"
 
@@ -51,19 +47,6 @@ ensure_image_cached() {
 }
 
 case "${operation}" in
-  base-install)
-    packages="$(cfl_packages_for_sanitizer "${sanitizer}")"
-    CI_RETRY_EXE_CMD='bash ./ci/retry/retry --'
-    image='gcr.io/oss-fuzz-base/clusterfuzzlite-build-fuzzers:v1'
-    ensure_image_cached "$image"
-    docker run \
-      "${docker_common[@]}" \
-      -e "APT_LLVM_V=${APT_VER}" \
-      -e "PACKAGES=${packages}" \
-      -e "CI_RETRY_EXE=${CI_RETRY_EXE_CMD}" \
-      "$image" \
-      -lc './ci/test/01_base_install.sh'
-    ;;
   detect-symbolizer)
     image='ghcr.io/sjors/clusterfuzzlite-run-fuzzers:llvm-22-debug'
     ensure_image_cached "$image"
@@ -77,4 +60,4 @@ case "${operation}" in
     echo "Unknown operation: ${operation}" >&2
     exit 1
     ;;
- esac
+esac
