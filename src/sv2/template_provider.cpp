@@ -7,6 +7,7 @@
 #include <logging.h>
 #include <sv2/noise.h>
 #include <consensus/validation.h> // NO_WITNESS_COMMITMENT
+#include <util/chaintype.h>
 #include <util/readwritefile.h>
 #include <util/strencodings.h>
 #include <util/thread.h>
@@ -167,12 +168,19 @@ void Sv2TemplateProvider::ThreadSv2Handler()
     }
 
     // Wait to come out of IBD, except on signet, where we might be the only miner.
+    size_t log_ibd{0};
     while (!m_flag_interrupt_sv2 && gArgs.GetChainType() != ChainType::SIGNET) {
         // TODO: Wait until there's no headers-only branch with more work than our chaintip.
         //       The current check can still cause us to broadcast a few dozen useless templates
         //       at startup.
         if (!m_mining.isInitialBlockDownload()) break;
-        LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Waiting to come out of IBD\n");
+        if (log_ibd == 0) {
+            LogPrintf("Waiting for IBD to complete on %s network before serving templates (this may take a while)\n",
+                      ChainTypeToString(gArgs.GetChainType()));
+        } else if (log_ibd % 10 == 0) {
+            LogPrintf(".\n");
+        }
+        log_ibd++;
         std::this_thread::sleep_for(1000ms);
     }
 

@@ -16,6 +16,7 @@
 #include <logging.h>
 #include <sv2/template_provider.h>
 #include <tinyformat.h>
+#include <util/chaintype.h>
 #include <util/translation.h>
 
 #ifndef WIN32
@@ -131,6 +132,9 @@ MAIN_FUNCTION
         return EXIT_FAILURE;
     }
 
+    const ChainType chain_type = args.GetChainType();
+    LogPrintf("Starting sv2-tp on %s network\n", ChainTypeToString(chain_type));
+
     ECC_Context ecc_context{};
     std::string sha256_algo = SHA256AutoDetect();
     LogInfo("Using the '%s' SHA256 implementation\n", sha256_algo);
@@ -171,20 +175,23 @@ MAIN_FUNCTION
     assert(mine_init);
     std::unique_ptr<interfaces::Init> node_init;
     std::string address{args.GetArg("-ipcconnect", "unix")};
+
+    LogPrintf("Attempting IPC connection to bitcoin-node at %s\n", address);
+    LogPrintf("Ensure Bitcoin Core is running with '-ipcbind=unix' and the correct network (%s)\n",
+              ChainTypeToString(chain_type));
+
     while (true) {
         try {
             node_init = mine_init->ipc()->connectAddress(address);
+            LogPrintf("Connected to bitcoin-node via IPC at: %s\n", address);
             break;  // Success: break out of the loop
         } catch (const std::exception& exception) {
             LogPrintf("IPC connection failed: %s\n", exception.what());
-            LogPrintf("bitcoin-node might not be running or listening on a UNIX socket.\n");
-            LogPrintf("Retrying in 10 seconds...\n");
-
+            LogPrintf("Retrying in 10 seconds... (Ensure Bitcoin Core is running with '-ipcbind=unix')\n");
             std::this_thread::sleep_for(std::chrono::seconds(10));
         }
     }
     assert(node_init);
-    tfm::format(std::cout, "Connected to bitcoin-node\n");
     std::unique_ptr<interfaces::Mining> mining{node_init->makeMining()};
     assert(mining);
 
@@ -194,6 +201,9 @@ MAIN_FUNCTION
         tfm::format(std::cerr, "Unable to start Stratum v2 Template Provider");
         return EXIT_FAILURE;
     }
+
+    LogPrintf("sv2-tp listening for Stratum v2 connections on %s:%d\n",
+              options.host, options.port);
 
 #ifndef WIN32
     registerSignalHandler(SIGTERM, HandleSIGTERM);
