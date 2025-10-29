@@ -126,10 +126,9 @@ void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
     LOCK(client->cs_send);
     auto it = client->m_send_messages.begin();
     std::optional<bool> expected_more;
-
     size_t total_sent = 0;
 
-    while(true) {
+    while (true) {
         if (it != client->m_send_messages.end()) {
             // If possible, move one message from the send queue to the transport.
             // This fails when there is an existing message still being sent,
@@ -142,8 +141,8 @@ void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
             }
         }
 
-        const auto& [data, more, _m_message_type] = client->m_transport->GetBytesToSend(/*have_next_message=*/it != client->m_send_messages.end());
-
+        const auto& [data, more, _m_message_type] =
+            client->m_transport->GetBytesToSend(/*have_next_message=*/it != client->m_send_messages.end());
 
         // We rely on the 'more' value returned by GetBytesToSend to correctly predict whether more
         // bytes are still to be sent, to correctly set the MSG_MORE flag. As a sanity check,
@@ -155,22 +154,24 @@ void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
         std::string errmsg;
 
         if (!data.empty()) {
-            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Send %d bytes to client id=%zu\n",
-                            data.size() - total_sent, node_id);
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace,
+                          "Send %d bytes to client id=%zu\n", data.size(), client->m_id);
 
-            sent = SendBytes(node_id, data, more, errmsg);
+            sent = SendBytes(client->m_id, data, more, errmsg);
         }
 
         if (sent > 0) {
             client->m_transport->MarkBytesSent(sent);
+            total_sent += sent;
             if (static_cast<size_t>(sent) != data.size()) {
                 // could not send full message; stop sending more
                 break;
             }
         } else {
             if (sent < 0) {
-                LogDebug(BCLog::NET, "socket send error for peer=%d: %s\n", node_id, errmsg);
-                CloseConnection(node_id);
+                LogDebug(BCLog::NET, "socket send error for peer=%d: %s\n",
+                         client->m_id, errmsg);
+                CloseConnection(client->m_id);
             }
             break;
         }
@@ -179,6 +180,8 @@ void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
     // Clear messages that have been handed to transport from the queue
     client->m_send_messages.erase(client->m_send_messages.begin(), it);
 
+    const bool more_pending = expected_more.value_or(false);
+
     // If both receiving and (non-optimistic) sending were possible, we first attempt
     // sending. If that succeeds, but does not fully drain the send queue, do not
     // attempt to receive. This avoids needlessly queueing data if the remote peer
@@ -186,9 +189,7 @@ void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
     // sending actually succeeded to make sure progress is always made; otherwise a
     // deadlock would be possible when both sides have data to send, but neither is
     // receiving.
-    //
-    // TODO: decide if this is useful for Sv2
-    cancel_recv = total_sent > 0; // && more;
+    cancel_recv = total_sent > 0 && more_pending;
 }
 
 void Sv2Connman::EventGotData(Id id, std::span<const uint8_t> data)
