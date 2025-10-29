@@ -113,36 +113,27 @@ bool Sv2Connman::EventNewConnectionAccepted(NodeId node_id,
     return true;
 }
 
-void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
+std::pair<size_t, bool> Sv2Connman::SendMessagesAsBytes(Sv2Client& client)
 {
-    AssertLockNotHeld(m_clients_mutex);
-
-    auto client{WITH_LOCK(m_clients_mutex, return GetClientById(node_id);)};
-    if (client == nullptr) {
-        cancel_recv = true;
-        return;
-    }
-
-    LOCK(client->cs_send);
-    auto it = client->m_send_messages.begin();
+    auto it = client.m_send_messages.begin();
     std::optional<bool> expected_more;
     size_t total_sent = 0;
 
     while (true) {
-        if (it != client->m_send_messages.end()) {
+        if (it != client.m_send_messages.end()) {
             // If possible, move one message from the send queue to the transport.
             // This fails when there is an existing message still being sent,
             // or when the handshake has not yet completed.
             //
             // Wrap Sv2NetMsg inside CSerializedNetMsg for transport
             CSerializedNetMsg net_msg{*it};
-            if (client->m_transport->SetMessageToSend(net_msg)) {
+            if (client.m_transport->SetMessageToSend(net_msg)) {
                 ++it;
             }
         }
 
         const auto& [data, more, _m_message_type] =
-            client->m_transport->GetBytesToSend(/*have_next_message=*/it != client->m_send_messages.end());
+            client.m_transport->GetBytesToSend(/*have_next_message=*/it != client.m_send_messages.end());
 
         // We rely on the 'more' value returned by GetBytesToSend to correctly predict whether more
         // bytes are still to be sent, to correctly set the MSG_MORE flag. As a sanity check,
@@ -155,13 +146,13 @@ void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
 
         if (!data.empty()) {
             LogPrintLevel(BCLog::SV2, BCLog::Level::Trace,
-                          "Send %d bytes to client id=%zu\n", data.size(), client->m_id);
+                          "Send %d bytes to client id=%zu\n", data.size(), client.m_id);
 
-            sent = SendBytes(client->m_id, data, more, errmsg);
+            sent = SendBytes(client.m_id, data, more, errmsg);
         }
 
         if (sent > 0) {
-            client->m_transport->MarkBytesSent(sent);
+            client.m_transport->MarkBytesSent(sent);
             total_sent += sent;
             if (static_cast<size_t>(sent) != data.size()) {
                 // could not send full message; stop sending more
@@ -170,17 +161,31 @@ void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
         } else {
             if (sent < 0) {
                 LogDebug(BCLog::NET, "socket send error for peer=%d: %s\n",
-                         client->m_id, errmsg);
-                CloseConnection(client->m_id);
+                         client.m_id, errmsg);
+                CloseConnection(client.m_id);
             }
             break;
         }
     }
 
     // Clear messages that have been handed to transport from the queue
-    client->m_send_messages.erase(client->m_send_messages.begin(), it);
+    client.m_send_messages.erase(client.m_send_messages.begin(), it);
 
-    const bool more_pending = expected_more.value_or(false);
+    return {total_sent, expected_more.value_or(false)};
+}
+
+void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
+{
+    AssertLockNotHeld(m_clients_mutex);
+
+    auto client{WITH_LOCK(m_clients_mutex, return GetClientById(node_id);)};
+    if (client == nullptr) {
+        cancel_recv = true;
+        return;
+    }
+
+    LOCK(client->cs_send);
+    const auto [total_sent, more_pending] = SendMessagesAsBytes(*client);
 
     // If both receiving and (non-optimistic) sending were possible, we first attempt
     // sending. If that succeeds, but does not fully drain the send queue, do not

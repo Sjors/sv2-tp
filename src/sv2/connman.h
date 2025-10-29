@@ -10,6 +10,8 @@
 #include <sv2/transport.h>
 #include <pubkey.h>
 
+#include <utility>
+
 namespace {
     /*
      * Supported Stratum v2 subprotocols
@@ -143,6 +145,9 @@ private:
     [[nodiscard]] bool Bind(std::string host, uint16_t port);
 
     void DisconnectFlagged() EXCLUSIVE_LOCKS_REQUIRED(m_clients_mutex);
+
+    std::pair<size_t, bool> SendMessagesAsBytes(Sv2Client& client)
+        EXCLUSIVE_LOCKS_REQUIRED(client.cs_send);
 
     /**
      * Create a `Sv2Client` object and add it to the `m_sv2_clients` member.
