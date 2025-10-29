@@ -216,6 +216,13 @@ public:
      */
     void ProcessSv2Message(const node::Sv2NetMsg& sv2_header, Sv2Client& client);
 
+    /**
+     * Attempt to flush the send queue immediately, without waiting for the
+     * socket layer to signal readiness. Falls back to the regular send path if
+     * the socket would block.
+     */
+    void TryOptimisticSend(Sv2Client& client) EXCLUSIVE_LOCKS_REQUIRED(client.cs_send);
+
     std::shared_ptr<Sv2Client> GetClientById(NodeId node_id) const EXCLUSIVE_LOCKS_REQUIRED(m_clients_mutex);
 
     using Sv2ClientFn = std::function<void(Sv2Client&)>;

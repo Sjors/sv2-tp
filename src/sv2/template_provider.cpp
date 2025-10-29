@@ -437,6 +437,7 @@ void Sv2TemplateProvider::RequestTransactionData(Sv2Client& client, node::Sv2Req
                     client.m_id);
     LOCK(client.cs_send);
     client.m_send_messages.emplace_back(request_tx_data_success);
+    m_connman->TryOptimisticSend(client);
 }
 
 void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
@@ -561,8 +562,6 @@ bool Sv2TemplateProvider::SendWork(Sv2Client& client, uint64_t template_id, Bloc
                                         template_id,
                                         future_template};
 
-    // TODO: use optimistic send instead of adding to the queue
-
     LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x71 NewTemplate id=%lu future=%d to client id=%zu\n", template_id, future_template, client.m_id);
     {
         LOCK(client.cs_send);
@@ -573,6 +572,8 @@ bool Sv2TemplateProvider::SendWork(Sv2Client& client, uint64_t template_id, Bloc
             LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x72 SetNewPrevHash to client id=%zu\n", client.m_id);
             client.m_send_messages.emplace_back(new_prev_hash);
         }
+
+        m_connman->TryOptimisticSend(client);
     }
 
     CAmount total_fees{0};

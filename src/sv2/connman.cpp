@@ -174,6 +174,12 @@ std::pair<size_t, bool> Sv2Connman::SendMessagesAsBytes(Sv2Client& client)
     return {total_sent, expected_more.value_or(false)};
 }
 
+void Sv2Connman::TryOptimisticSend(Sv2Client& client)
+{
+    AssertLockHeld(client.cs_send);
+    SendMessagesAsBytes(client);
+}
+
 void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
 {
     AssertLockNotHeld(m_clients_mutex);
