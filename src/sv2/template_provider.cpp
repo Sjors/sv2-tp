@@ -4,6 +4,7 @@
 #include <consensus/merkle.h>
 #include <crypto/hex_base.h>
 #include <common/args.h>
+#include <ipc/exception.h>
 #include <logging.h>
 #include <sv2/noise.h>
 #include <consensus/validation.h> // NO_WITNESS_COMMITMENT
@@ -122,6 +123,24 @@ Sv2TemplateProvider::~Sv2TemplateProvider()
 
 void Sv2TemplateProvider::Interrupt()
 {
+    AssertLockNotHeld(m_tp_mutex);
+
+    LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Interrupt pending waitNext() calls...");
+    {
+        LOCK(m_tp_mutex);
+        try {
+            for (auto& t : GetBlockTemplates()) {
+                t.second->interruptWait();
+            }
+        } catch (const ipc::Exception& e) {
+            // Bitcoin Core v30 does not yet implement interruptWait(), fall back
+            // to just waiting until waitNext() returns.
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Info,
+                          "Interrupt received, waiting up to %d seconds before shutting down (-sv2interval)",
+                          m_options.fee_check_interval.count());
+        }
+    }
+
     m_flag_interrupt_sv2 = true;
     // Also interrupt network threads so client handlers can wind down quickly.
     if (m_connman) m_connman->Interrupt();
