@@ -557,7 +557,6 @@ bool Sv2TemplateProvider::SendWork(Sv2Client& client, uint64_t template_id, Bloc
     node::Sv2NewTemplateMsg new_template{header,
                                         block_template.getCoinbaseTx(),
                                         block_template.getCoinbaseMerklePath(),
-                                        block_template.getWitnessCommitmentIndex(),
                                         template_id,
                                         future_template};
 

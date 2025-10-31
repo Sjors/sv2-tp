@@ -4,8 +4,9 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <consensus/validation.h> // NO_WITNESS_COMMITMENT
+#include <script/script.h>
 
-node::Sv2NewTemplateMsg::Sv2NewTemplateMsg(const CBlockHeader& header, const CTransactionRef coinbase_tx, std::vector<uint256> coinbase_merkle_path, int witness_commitment_index, uint64_t template_id, bool future_template)
+node::Sv2NewTemplateMsg::Sv2NewTemplateMsg(const CBlockHeader& header, const CTransactionRef coinbase_tx, std::vector<uint256> coinbase_merkle_path, uint64_t template_id, bool future_template)
     : m_template_id{template_id}, m_future_template{future_template}
 {
     m_version = header.nVersion;
@@ -17,11 +18,16 @@ node::Sv2NewTemplateMsg::Sv2NewTemplateMsg(const CBlockHeader& header, const CTr
     // The coinbase nValue already contains the nFee + the Block Subsidy when built using CreateBlock().
     m_coinbase_tx_value_remaining = static_cast<uint64_t>(coinbase_tx->vout[0].nValue);
 
-    m_coinbase_tx_outputs_count = 0;
-    if (witness_commitment_index != NO_WITNESS_COMMITMENT) {
-        m_coinbase_tx_outputs_count = 1;
-        m_coinbase_tx_outputs = {coinbase_tx->vout[witness_commitment_index]};
+    // Extract only OP_RETURN coinbase outputs (witness commitment, merge mining, etc.)
+    // Bitcoin Core adds a dummy output with the full reward that we must exclude,
+    // otherwise the pool would create an invalid block trying to spend that amount again.
+    m_coinbase_tx_outputs.clear();
+    for (const auto& output : coinbase_tx->vout) {
+        if (!output.scriptPubKey.empty() && output.scriptPubKey[0] == OP_RETURN) {
+            m_coinbase_tx_outputs.push_back(output);
+        }
     }
+    m_coinbase_tx_outputs_count = m_coinbase_tx_outputs.size();
 
     m_coinbase_tx_locktime = coinbase_tx->nLockTime;
 

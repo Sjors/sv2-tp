@@ -314,7 +314,7 @@ struct Sv2NewTemplateMsg
     std::vector<uint256> m_merkle_path;
 
     Sv2NewTemplateMsg() = default;
-    explicit Sv2NewTemplateMsg(const CBlockHeader& header, const CTransactionRef coinbase_tx, std::vector<uint256> coinbase_merkle_path, int witness_commitment_index, uint64_t template_id, bool future_template);
+    explicit Sv2NewTemplateMsg(const CBlockHeader& header, const CTransactionRef coinbase_tx, std::vector<uint256> coinbase_merkle_path, uint64_t template_id, bool future_template);
 
     template <typename Stream>
     void Serialize(Stream& s) const
@@ -332,8 +332,12 @@ struct Sv2NewTemplateMsg
         // as [B0_64K](https://github.com/stratum-mining/sv2-spec/blob/main/03-Protocol-Overview.md#31-data-types-mapping)
         if (m_coinbase_tx_outputs_count > 0) {
             std::vector<uint8_t> outputs_bytes;
-            // TODO: support more than 1 output
-            VectorWriter{outputs_bytes, 0, m_coinbase_tx_outputs.at(0)};
+            for (const auto& output : m_coinbase_tx_outputs) {
+                VectorWriter{outputs_bytes, outputs_bytes.size(), output};
+            }
+
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Serialized %zu coinbase output(s), total size: %zu bytes\n",
+                          m_coinbase_tx_outputs.size(), outputs_bytes.size());
 
             s << static_cast<uint16_t>(outputs_bytes.size());
             s.write(MakeByteSpan(outputs_bytes));

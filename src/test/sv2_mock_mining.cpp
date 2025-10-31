@@ -21,14 +21,24 @@ MockBlockTemplate::MockBlockTemplate(std::shared_ptr<MockState> st, uint256 prev
 {
     // Simple internal consistency assertion: constructor sequence should not exceed state counter.
     assert(m_sequence <= state->chain.template_seq);
-    // Build a dummy coinbase
+    // Build a realistic coinbase with multiple outputs
     CMutableTransaction cb;
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << OP_0;
-    cb.vout.resize(1);
+
+    cb.vout.resize(3);
+    // Output 0: Dummy anyone-can-spend output with full reward (will be filtered out by sv2-tp)
     cb.vout[0].nValue = 50 * COIN;
-    cb.vout[0].scriptPubKey = CScript() << OP_RETURN;
+    cb.vout[0].scriptPubKey = CScript() << OP_TRUE;
+
+    // Output 1: Fake witness commitment (will be included)
+    cb.vout[1].nValue = 0;
+    cb.vout[1].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>(32, 0xaa);
+
+    // Output 2: Fake merge mining commitment (will be included)
+    cb.vout[2].nValue = 0;
+    cb.vout[2].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>{'M', 'M'};
 
     block = CBlock{};
     block.vtx.clear();

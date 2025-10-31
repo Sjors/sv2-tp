@@ -62,11 +62,11 @@ BOOST_AUTO_TEST_CASE(client_tests)
         1 +                 // future_template
         4 +                 // version
         4 +                 // coinbase_tx_version
-    2 +                 // coinbase_prefix (CompactSize(1) + 1-byte OP_0)
+        2 +                 // coinbase_prefix (CompactSize(1) + 1-byte OP_0)
         4 +                 // coinbase_tx_input_sequence
         8 +                 // coinbase_tx_value_remaining
-        4 +                 // coinbase_tx_outputs_count (0)
-        2 +                 // B0_64K length for outputs array (0)
+        4 +                 // coinbase_tx_outputs_count (2 - mock creates 3, only 2 OP_RETURN outputs pass filter)
+        2 + 56 +            // B0_64K: length prefix (2 bytes) + 2 outputs (witness commitment 43 bytes + merge mining 13 bytes)
         4 +                 // coinbase_tx_locktime
         1;                  // merkle_path count (CompactSize(0))
 
