@@ -142,8 +142,9 @@ public:
 
     /**
      * Triggered on interrupt signals to stop the main event loop in ThreadSv2Handler().
+     * Interrupts pending waitNext() calls
      */
-    void Interrupt();
+    void Interrupt() EXCLUSIVE_LOCKS_REQUIRED(!m_tp_mutex);
 
     /**
      * Tear down of the template provider thread and any other necessary tear down.
@@ -162,7 +163,7 @@ public:
 
     void SubmitSolution(node::Sv2SubmitSolutionMsg solution) EXCLUSIVE_LOCKS_REQUIRED(!m_tp_mutex) override;
 
-    /* Block templates that connected clients may be working on, only used for tests */
+    /* Block templates that connected clients may be working on */
     BlockTemplateCache& GetBlockTemplates() EXCLUSIVE_LOCKS_REQUIRED(m_tp_mutex) { return m_block_template_cache; }
 
 private:
