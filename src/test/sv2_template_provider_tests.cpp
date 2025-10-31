@@ -65,8 +65,8 @@ BOOST_AUTO_TEST_CASE(client_tests)
     2 +                 // coinbase_prefix (CompactSize(1) + 1-byte OP_0)
         4 +                 // coinbase_tx_input_sequence
         8 +                 // coinbase_tx_value_remaining
-        4 +                 // coinbase_tx_outputs_count (0)
-        2 +                 // B0_64K length for outputs array (0)
+        4 +                 // coinbase_tx_outputs_count (1 - mock creates 1 output)
+        2 + 10 +            // B0_64K: length(10) + 1 output (8 bytes nValue + 2 bytes script)
         4 +                 // coinbase_tx_locktime
         1;                  // merkle_path count (CompactSize(0))
 

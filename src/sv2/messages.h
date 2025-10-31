@@ -332,8 +332,12 @@ struct Sv2NewTemplateMsg
         // as [B0_64K](https://github.com/stratum-mining/sv2-spec/blob/main/03-Protocol-Overview.md#31-data-types-mapping)
         if (m_coinbase_tx_outputs_count > 0) {
             std::vector<uint8_t> outputs_bytes;
-            // TODO: support more than 1 output
-            VectorWriter{outputs_bytes, 0, m_coinbase_tx_outputs.at(0)};
+            for (const auto& output : m_coinbase_tx_outputs) {
+                VectorWriter{outputs_bytes, outputs_bytes.size(), output};
+            }
+
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Serialized %zu coinbase output(s), total size: %zu bytes\n",
+                          m_coinbase_tx_outputs.size(), outputs_bytes.size());
 
             s << static_cast<uint16_t>(outputs_bytes.size());
             s.write(MakeByteSpan(outputs_bytes));
