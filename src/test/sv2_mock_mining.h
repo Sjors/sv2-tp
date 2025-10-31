@@ -65,6 +65,7 @@ public:
     bool submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef) override;
 
     std::unique_ptr<interfaces::BlockTemplate> waitNext(const node::BlockWaitOptions options = {}) override;
+    void interruptWait() override;
 
 private:
     std::shared_ptr<MockState> state;
