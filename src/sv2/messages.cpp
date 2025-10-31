@@ -17,10 +17,11 @@ node::Sv2NewTemplateMsg::Sv2NewTemplateMsg(const CBlockHeader& header, const CTr
     // The coinbase nValue already contains the nFee + the Block Subsidy when built using CreateBlock().
     m_coinbase_tx_value_remaining = static_cast<uint64_t>(coinbase_tx->vout[0].nValue);
 
-    m_coinbase_tx_outputs_count = 0;
-    if (witness_commitment_index != NO_WITNESS_COMMITMENT) {
-        m_coinbase_tx_outputs_count = 1;
-        m_coinbase_tx_outputs = {coinbase_tx->vout[witness_commitment_index]};
+    // Extract ALL coinbase outputs to support merge mining and other use cases
+    m_coinbase_tx_outputs_count = coinbase_tx->vout.size();
+    m_coinbase_tx_outputs.clear();
+    for (const auto& output : coinbase_tx->vout) {
+        m_coinbase_tx_outputs.push_back(output);
     }
 
     m_coinbase_tx_locktime = coinbase_tx->nLockTime;
