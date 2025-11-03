@@ -2,6 +2,9 @@
 #include <boost/test/unit_test.hpp>
 #include <sv2/messages.h>
 #include <util/strencodings.h>
+#include <primitives/transaction.h>
+#include <primitives/block.h>
+#include <script/script.h>
 
 BOOST_AUTO_TEST_SUITE(sv2_messages_tests)
 
@@ -146,6 +149,74 @@ BOOST_AUTO_TEST_CASE(Sv2NewTemplate_test)
     CTransaction tx{mtx_tx};
     merkle_path.push_back(tx.GetHash().ToUint256());
     new_template.m_merkle_path = merkle_path;
+
+    DataStream ss{};
+    ss << new_template;
+
+    BOOST_CHECK_EQUAL(HexStr(ss), expected);
+}
+
+BOOST_AUTO_TEST_CASE(Sv2NewTemplate_MultipleOutputs_test)
+{
+    // NewTemplate with realistic coinbase: 1 dummy anyone-can-spend output + 3 OP_RETURN outputs
+    // Tests that only OP_RETURN outputs are serialized (dummy output filtered out)
+    //
+    // U64              0100000000000000    template_id
+    // BOOL             00                  future_template
+    // U32              00000030            version
+    // U32              02000000            coinbase tx version
+    // B0_255           04                  coinbase_prefix len
+    //                  03012100            coinbase prefix
+    // U32              ffffffff            coinbase tx input sequence
+    // U64              0040075af0750700    coinbase tx value remaining
+    // U32              03000000            coinbase tx outputs count (3 OP_RETURN outputs, dummy filtered)
+    // B0_64K           2100                coinbase_tx_outputs (33 bytes total)
+    //                  6400000000000000    output 1: 100 sats
+    //                  026a51              output 1: script (OP_RETURN OP_1)
+    //                  c800000000000000    output 2: 200 sats
+    //                  026a52              output 2: script (OP_RETURN OP_2)
+    //                  2c01000000000000    output 3: 300 sats
+    //                  026a53              output 3: script (OP_RETURN OP_3)
+    // U32              dbc80d00            coinbase lock time (height 903,387)
+    // SEQ0_255[U256]   01                  merkle path length
+    //                  1a6240823de4c8d6aaf826851bdf2b0e8d5acf7c31e8578cff4c394b5a32bd4e - merkle path
+    std::string expected{"01000000000000000000000030020000000403012100ffffffff0040075af07507000300000021006400000000000000026a51c800000000000000026a522c01000000000000026a53dbc80d00011a6240823de4c8d6aaf826851bdf2b0e8d5acf7c31e8578cff4c394b5a32bd4e"};
+
+    // Create realistic coinbase transaction with dummy anyone-can-spend output
+    CMutableTransaction coinbase_tx;
+    coinbase_tx.version = 2;
+    coinbase_tx.vin.resize(1);
+    coinbase_tx.vin[0].prevout.SetNull();
+    std::vector<uint8_t> coinbase_prefix_bytes{0x03, 0x01, 0x21, 0x00};
+    coinbase_tx.vin[0].scriptSig = CScript(coinbase_prefix_bytes.begin(), coinbase_prefix_bytes.end());
+    coinbase_tx.vin[0].nSequence = 4294967295;
+
+    coinbase_tx.vout.resize(4);
+    // Output 0: Dummy anyone-can-spend output with full reward (will be filtered out by sv2-tp)
+    coinbase_tx.vout[0].nValue = MAX_MONEY;
+    coinbase_tx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+
+    // Outputs 1-3: OP_RETURN outputs (will be included in NewTemplate message)
+    coinbase_tx.vout[1] = CTxOut(100, CScript() << OP_RETURN << 1);
+    coinbase_tx.vout[2] = CTxOut(200, CScript() << OP_RETURN << 2);
+    coinbase_tx.vout[3] = CTxOut(300, CScript() << OP_RETURN << 3);
+
+    coinbase_tx.nLockTime = 903387;
+
+    CBlockHeader header;
+    header.nVersion = 805306368;
+    header.hashPrevBlock.SetNull();
+    header.nTime = 0;
+    header.nBits = 0;
+    header.nNonce = 0;
+
+    std::vector<uint256> merkle_path;
+    CMutableTransaction mtx_tx;
+    CTransaction tx{mtx_tx};
+    merkle_path.push_back(tx.GetHash().ToUint256());
+
+    // Use constructor which filters outputs to only OP_RETURN
+    node::Sv2NewTemplateMsg new_template{header, MakeTransactionRef(coinbase_tx), merkle_path, 1, false};
 
     DataStream ss{};
     ss << new_template;
