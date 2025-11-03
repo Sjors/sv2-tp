@@ -91,7 +91,17 @@ chain for " target " development."))
       (home-page (package-home-page xgcc))
       (license (package-license xgcc)))))
 
-(define base-gcc gcc-13) ;; 13.3.0
+(define base-gcc
+  (package
+    (inherit gcc-14) ;; 14.2.0
+    (version "14.3.0")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://gnu/gcc/gcc-"
+                                  version "/gcc-" version ".tar.xz"))
+              (sha256
+               (base32
+                "0fna78ly417g69fdm4i5f3ms96g8xzzjza8gwp41lqr5fqlpgp70"))))))
 
 (define base-linux-kernel-headers linux-libre-headers-6.1)
 
@@ -547,7 +557,7 @@ inspecting signatures in Mach-O binaries.")
         tar
         gzip
         ;; Build tools
-        gcc-toolchain-13
+        gcc-toolchain-14
         cmake-minimal
         gnu-make
         ninja
@@ -565,7 +575,7 @@ inspecting signatures in Mach-O binaries.")
                  nss-certs
                  osslsigncode))
           ((string-contains target "-linux-")
-           (list (list gcc-toolchain-13 "static")
+           (list (list gcc-toolchain-14 "static")
                  (make-bitcoin-cross-toolchain target)))
           ((string-contains target "darwin")
            (list clang-toolchain-18
