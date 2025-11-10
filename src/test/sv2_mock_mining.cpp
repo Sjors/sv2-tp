@@ -6,6 +6,7 @@
 
 #include <sync.h>
 #include <cassert>
+#include <logging.h>
 
 namespace {
 static inline uint256 HashFromHeight(uint64_t h)
@@ -102,6 +103,11 @@ std::unique_ptr<interfaces::BlockTemplate> MockBlockTemplate::waitNext(const nod
         lk.unlock();
         return std::make_unique<MockBlockTemplate>(state, prev, std::move(txs), seq);
     }
+}
+
+ void MockBlockTemplate::interruptWait()
+{
+     LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "mock interruptWait()");
 }
 
 MockMining::MockMining(std::shared_ptr<MockState> st) : state(std::move(st)) {}
