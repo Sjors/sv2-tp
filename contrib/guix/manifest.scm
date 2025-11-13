@@ -439,6 +439,7 @@ inspecting signatures in Mach-O binaries.")
                   "--enable-cet=yes",
                   "--disable-gcov",
                   "--disable-libgomp",
+                  "--disable-libquadmath",
                   building-on)))
         ((#:phases phases)
           `(modify-phases ,phases
