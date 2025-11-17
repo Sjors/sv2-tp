@@ -130,7 +130,7 @@ void Sv2TemplateProvider::Interrupt()
         LOCK(m_tp_mutex);
         try {
             for (auto& t : GetBlockTemplates()) {
-                t.second->interruptWait();
+                t.second.second->interruptWait();
             }
         } catch (const ipc::Exception& e) {
             // Bitcoin Core v30 does not yet implement interruptWait(), fall back
@@ -250,7 +250,6 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 {
     try {
         Timer timer(m_options.fee_check_interval);
-        std::shared_ptr<BlockTemplate> block_template;
 
         const auto prepare_block_create_options = [this, client_id](node::BlockCreateOptions& options) -> bool {
             {
@@ -265,6 +264,9 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
             return true;
         };
 
+        std::shared_ptr<BlockTemplate> block_template;
+        // Cache most recent block_template->getBlockHeader().hashPrevBlock result.
+        uint256 prev_hash;
         while (!m_flag_interrupt_sv2) {
             if (!block_template) {
                 LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Generate initial block template for client id=%zu\n",
@@ -288,7 +290,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Assemble template: %.2fms\n",
                     Ticks<MillisecondsDouble>(SteadyClock::now() - time_start));
 
-                uint256 prev_hash{block_template->getBlockHeader().hashPrevBlock};
+                prev_hash = block_template->getBlockHeader().hashPrevBlock;
                 {
                     LOCK(m_tp_mutex);
                     if (prev_hash != m_best_prev_hash) {
@@ -299,7 +301,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 
                     // Add template to cache before sending it, to prevent race
                     // condition: https://github.com/stratum-mining/stratum/issues/1773
-                    m_block_template_cache.insert({template_id,block_template});
+                    m_block_template_cache.insert({template_id,std::make_pair(prev_hash, block_template)});
                 }
 
                 {
@@ -346,7 +348,6 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                               client_id);
             }
 
-            uint256 old_prev_hash{block_template->getBlockHeader().hashPrevBlock};
             std::shared_ptr<BlockTemplate> tmpl = block_template->waitNext(options);
             // The client may have disconnected during the wait, check now to avoid
             // a spurious IPC call and confusing log statements.
@@ -362,7 +363,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 
                 {
                     LOCK(m_tp_mutex);
-                    if (new_prev_hash != old_prev_hash) {
+                    if (new_prev_hash != prev_hash) {
                         LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Tip changed, client id=%zu\n",
                             client_id);
                         future_template = true;
@@ -375,7 +376,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 
                     // Add template to cache before sending it, to prevent race
                     // condition: https://github.com/stratum-mining/stratum/issues/1773
-                    m_block_template_cache.insert({m_template_id,block_template});
+                    m_block_template_cache.insert({m_template_id, std::make_pair(new_prev_hash,block_template)});
                 }
 
                 {
@@ -422,7 +423,7 @@ void Sv2TemplateProvider::RequestTransactionData(Sv2Client& client, node::Sv2Req
 
             return;
         }
-        block = (*cached_block->second).getBlock();
+        block = (*cached_block->second.second).getBlock();
     }
 
     {
@@ -497,7 +498,7 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
              * on the network. In case of a reorg the node will be able to switch
              * faster because it already has (but not fully validated) the block.
              */
-            block_template = cached_block_template->second;
+            block_template = cached_block_template->second.second;
         }
 
         // Submit the solution to construct and process the block
@@ -555,7 +556,7 @@ void Sv2TemplateProvider::PruneBlockTemplateCache()
     // If the blocks prevout is not the tip's prevout, delete it.
     uint256 prev_hash = m_best_prev_hash;
     std::erase_if(m_block_template_cache, [prev_hash] (const auto& kv) {
-        if (kv.second->getBlockHeader().hashPrevBlock != prev_hash) {
+        if (kv.second.first != prev_hash) {
             return true;
         }
         return false;
