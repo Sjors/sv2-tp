@@ -17,6 +17,9 @@
 #include <algorithm>
 #include <limits>
 
+// Allow a few seconds for clients to submit a block or to request transactions
+constexpr size_t STALE_TEMPLATE_GRACE_PERIOD{10};
+
 Sv2TemplateProvider::Sv2TemplateProvider(interfaces::Mining& mining) : m_mining{mining}
 {
     // TODO: persist static key
@@ -428,10 +431,10 @@ void Sv2TemplateProvider::RequestTransactionData(Sv2Client& client, node::Sv2Req
 
     {
         LOCK(m_tp_mutex);
-        if (block.hashPrevBlock != m_best_prev_hash) {
+        auto recent = GetTime<std::chrono::seconds>() - std::chrono::seconds(STALE_TEMPLATE_GRACE_PERIOD);
+        if (block.hashPrevBlock != m_best_prev_hash && m_last_block_time < recent) {
             LogTrace(BCLog::SV2, "Template id=%lu prevhash=%s, tip=%s\n", msg.m_template_id, HexStr(block.hashPrevBlock), HexStr(m_best_prev_hash));
             node::Sv2RequestTransactionDataErrorMsg request_tx_data_error{msg.m_template_id, "stale-template-id"};
-
 
             LogDebug(BCLog::SV2, "Send 0x75 RequestTransactionData.Error (stale-template-id) to client id=%zu\n",
                     client.m_id);
@@ -550,8 +553,7 @@ void Sv2TemplateProvider::PruneBlockTemplateCache()
 {
     AssertLockHeld(m_tp_mutex);
 
-    // Allow a few seconds for clients to submit a block
-    auto recent = GetTime<std::chrono::seconds>() - std::chrono::seconds(10);
+    auto recent = GetTime<std::chrono::seconds>() - std::chrono::seconds(STALE_TEMPLATE_GRACE_PERIOD);
     if (m_last_block_time > recent) return;
     // If the blocks prevout is not the tip's prevout, delete it.
     uint256 prev_hash = m_best_prev_hash;

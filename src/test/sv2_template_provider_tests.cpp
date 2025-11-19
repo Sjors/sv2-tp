@@ -161,8 +161,8 @@ BOOST_AUTO_TEST_CASE(client_tests)
     template_id_bytes.resize(8);
     ss >> MakeWritableByteSpan(template_id_bytes);
 
-    msg = node::Sv2NetMsg{req_tx_data_header.m_msg_type, std::move(template_id_bytes)};
-    tester.receiveMessage(msg);
+    node::Sv2NetMsg request_transaction_data_msg{req_tx_data_header.m_msg_type, std::move(template_id_bytes)};
+    tester.receiveMessage(request_transaction_data_msg);
     BOOST_TEST_MESSAGE("Receive RequestTransactionData.Success");
     // RequestTransactionData.Success on-wire size derived from constants and actual tx size
     constexpr size_t SV2_RTD_SUCCESS_PREFIX = 8 /*template_id*/ + 2 /*excess len*/ + 2 /*tx_count=1*/;
@@ -202,17 +202,18 @@ BOOST_AUTO_TEST_CASE(client_tests)
     // Have the peer send us RequestTransactionData for the old template
     // We should reply with RequestTransactionData.Success, and the original
     // (replaced) transaction
-    tester.receiveMessage(msg);
+    tester.receiveMessage(request_transaction_data_msg);
     // Old template RequestTransactionData.Success again
+    size_t request_transaction_data_success_bytes;
     {
         const CTransactionRef tx_ref = MakeDummyTx();
         DataStream ss_tx{};
         ss_tx << TX_WITH_WITNESS(*tx_ref);
         const size_t tx_size = ss_tx.size();
         const size_t rtd_payload = SV2_RTD_SUCCESS_PREFIX + SV2_U24_LEN + tx_size;
-        const size_t expected_rtd_onwire = SV2_HEADER_ENCRYPTED_SIZE + rtd_payload + Poly1305::TAGLEN;
+        request_transaction_data_success_bytes = SV2_HEADER_ENCRYPTED_SIZE + rtd_payload + Poly1305::TAGLEN;
         size_t bytes_req_success2 = tester.PeerReceiveBytes();
-        BOOST_REQUIRE_EQUAL(bytes_req_success2, expected_rtd_onwire);
+        BOOST_REQUIRE_EQUAL(bytes_req_success2, request_transaction_data_success_bytes);
     }
 
     BOOST_TEST_MESSAGE("Create a new block (new tip)");
@@ -235,16 +236,22 @@ BOOST_AUTO_TEST_CASE(client_tests)
     uint64_t seq_after_tip_pair = tester.m_mining_control->GetTemplateSeq();
     BOOST_REQUIRE(seq_after_tip_pair >= seq_after_second_nt);
 
-    // Do not provide transactions for stale templates
+    BOOST_TEST_MESSAGE("Briefly provide transactions for stale templates");
+    tester.receiveMessage(request_transaction_data_msg);
+    size_t bytes_received = tester.PeerReceiveBytes();
+    BOOST_REQUIRE_EQUAL(bytes_received, request_transaction_data_success_bytes);
+
+    // And briefly allow SubmitSolution
     // TODO
 
-    // But do allow SubmitSolution
-    // TODO
-
-    // Until after some time
+    BOOST_TEST_MESSAGE("Until after some time");
     SetMockTime(GetMockTime() + std::chrono::seconds{15});
     UninterruptibleSleep(std::chrono::milliseconds{1100});
     BOOST_REQUIRE_EQUAL(tester.GetBlockTemplateCount(), 1);
+
+    tester.receiveMessage(request_transaction_data_msg);
+    // RequestTransactionData.Error (just check that the size is different)
+    BOOST_REQUIRE(tester.PeerReceiveBytes() != request_transaction_data_success_bytes);
 
     // Interrupt waitNext()
     tester.m_mining_control->Shutdown();
