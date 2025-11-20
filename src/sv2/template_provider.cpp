@@ -427,10 +427,7 @@ void Sv2TemplateProvider::RequestTransactionData(Sv2Client& client, node::Sv2Req
             return;
         }
         block = (*cached_block->second.second).getBlock();
-    }
 
-    {
-        LOCK(m_tp_mutex);
         auto recent = GetTime<std::chrono::seconds>() - std::chrono::seconds(STALE_TEMPLATE_GRACE_PERIOD);
         if (block.hashPrevBlock != m_best_prev_hash && m_last_block_time < recent) {
             LogTrace(BCLog::SV2, "Template id=%lu prevhash=%s, tip=%s\n", msg.m_template_id, HexStr(block.hashPrevBlock), HexStr(m_best_prev_hash));
