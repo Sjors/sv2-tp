@@ -64,9 +64,9 @@ Install Guix using one of the installation methods detailed in
 Check out the source code in the following directory hierarchy.
 
     cd /path/to/your/toplevel/build
-    git clone https://github.com/sjors/sv2-tp-guix.sigs.git
-    git clone https://github.com/sjors/sv2-tp-detached-sigs.git
-    git clone https://github.com/sjors/sv2-tp.git
+    git clone https://github.com/stratum-mining/sv2-tp-guix.sigs.git
+    git clone https://github.com/stratum-mining/sv2-tp-detached-sigs.git
+    git clone https://github.com/stratum-mining/sv2-tp.git
 
 ### Write the release notes
 
@@ -220,9 +220,9 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 
 - Update repositories
 
-  - Delete post-EOL [release branches](https://github.com/sjors/sv2-tp/branches/all) and create a tag `v${branch_name}-final`.
+  - Delete post-EOL [release branches](https://github.com/stratum-mining/sv2-tp/branches/all) and create a tag `v${branch_name}-final`.
 
-  - Create a [new GitHub release](https://github.com/sjors/sv2-tp/releases/new) with a link to the archived release notes
+  - Create a [new GitHub release](https://github.com/stratum-mining/sv2-tp/releases/new) with a link to the archived release notes
 
 - Announce the release:
 

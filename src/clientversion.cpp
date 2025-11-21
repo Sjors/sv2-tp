@@ -77,7 +77,7 @@ std::string CopyrightHolders(const std::string& strPrefix)
 
 std::string LicenseInfo()
 {
-    const std::string URL_SOURCE_CODE = "<https://github.com/sjors/sv2-tp>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/stratum-mining/sv2-tp>";
 
     return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2025, COPYRIGHT_YEAR).translated + " ") + "\n" +
            "\n" +
