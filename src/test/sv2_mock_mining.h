@@ -19,6 +19,8 @@
 #include <sync.h>
 #include <uint256.h>
 
+using interfaces::MemoryLoad;
+
 // Minimal mocks for the Mining IPC interface used by sv2 tests.
 
 struct MockEvent {
@@ -100,6 +102,8 @@ public:
     bool checkBlock(const CBlock&, const node::BlockCheckOptions&, std::string&, std::string&) override;
     bool submitBlock(const CBlock&, std::string&, std::string&) override;
     std::vector<CTransactionRef> getTransactionsByTxID(const std::vector<Txid>&) override;
+    std::vector<CTransactionRef> getTransactionsByWitnessID(const std::vector<Wtxid>&) override { return {}; }
+    MemoryLoad getMemoryLoad() override;
 
     // Accessors for tests (thread-safe)
     uint64_t GetTemplateSeq();
