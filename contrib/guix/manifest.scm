@@ -107,10 +107,10 @@ chain for " target " development."))
 
 (define* (make-bitcoin-cross-toolchain target
                                        #:key
-                                       (base-gcc-for-libc linux-base-gcc)
+                                       (base-gcc-for-libc (gcc-ssa-patches linux-base-gcc))
                                        (base-kernel-headers base-linux-kernel-headers)
                                        (base-libc glibc-2.31)
-                                       (base-gcc linux-base-gcc))
+                                       (base-gcc (gcc-ssa-patches linux-base-gcc)))
   "Convenience wrapper around MAKE-CROSS-TOOLCHAIN with default values
 desirable for building Bitcoin Core release binaries."
   (make-cross-toolchain target
@@ -119,9 +119,13 @@ desirable for building Bitcoin Core release binaries."
                         base-libc
                         base-gcc))
 
+(define (gcc-ssa-patches gcc)
+  (package-with-extra-patches gcc
+    (search-our-patches "gcc-ssa-generation.patch")))
+
 (define (gcc-mingw-patches gcc)
   (package-with-extra-patches gcc
-    (search-our-patches "gcc-remap-guix-store.patch")))
+    (search-our-patches "gcc-remap-guix-store.patch" "gcc-ssa-generation.patch")))
 
 (define (binutils-mingw-patches binutils)
   (package-with-extra-patches binutils
