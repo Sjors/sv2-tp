@@ -90,16 +90,18 @@ chain for " target " development."))
       (home-page (package-home-page xgcc))
       (license (package-license xgcc)))))
 
-(define base-gcc gcc-14)
+(define base-gcc
+  (package-with-extra-patches gcc-14
+    (search-our-patches "gcc-remap-guix-store.patch" "gcc-ssa-generation.patch")))
 
 (define base-linux-kernel-headers linux-libre-headers-6.1)
 
 (define* (make-bitcoin-cross-toolchain target
                                        #:key
-                                       (base-gcc-for-libc (gcc-ssa-patches linux-base-gcc))
+                                       (base-gcc-for-libc linux-base-gcc)
                                        (base-kernel-headers base-linux-kernel-headers)
                                        (base-libc glibc-2.31)
-                                       (base-gcc (gcc-ssa-patches linux-base-gcc)))
+                                       (base-gcc linux-base-gcc))
   "Convenience wrapper around MAKE-CROSS-TOOLCHAIN with default values
 desirable for building Bitcoin Core release binaries."
   (make-cross-toolchain target
@@ -107,14 +109,6 @@ desirable for building Bitcoin Core release binaries."
                         base-kernel-headers
                         base-libc
                         base-gcc))
-
-(define (gcc-ssa-patches gcc)
-  (package-with-extra-patches gcc
-    (search-our-patches "gcc-ssa-generation.patch")))
-
-(define (gcc-mingw-patches gcc)
-  (package-with-extra-patches gcc
-    (search-our-patches "gcc-remap-guix-store.patch" "gcc-ssa-generation.patch")))
 
 (define (binutils-mingw-patches binutils)
   (package-with-extra-patches binutils
@@ -129,10 +123,10 @@ desirable for building Bitcoin Core release binaries."
   (let* ((xbinutils (binutils-mingw-patches (cross-binutils target)))
          (machine (substring target 0 (string-index target #\-)))
          (pthreads-xlibc (winpthreads-patches (make-mingw-w64 machine
-                                         #:xgcc (cross-gcc target #:xgcc (gcc-mingw-patches base-gcc))
+                                         #:xgcc (cross-gcc target #:xgcc base-gcc)
                                          #:with-winpthreads? #t)))
          (pthreads-xgcc (cross-gcc target
-                                    #:xgcc (gcc-mingw-patches mingw-w64-base-gcc)
+                                    #:xgcc mingw-w64-base-gcc
                                     #:xbinutils xbinutils
                                     #:libc pthreads-xlibc)))
     ;; Define a meta-package that propagates the resulting XBINUTILS, XLIBC, and
