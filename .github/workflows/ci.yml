@@ -183,7 +183,7 @@ jobs:
         with:
           path: ${{ env.CCACHE_DIR }}
           # https://github.com/actions/cache/blob/main/tips-and-workarounds.md#update-a-cache
-          key: ${{ github.job }}-${{ matrix.job-type }}-ccache-${{ github.run_id }}
+          key: ${{ steps.ccache-cache.outputs.cache-primary-key }}
 
   ci-matrix:
     name: ${{ matrix.name }}
