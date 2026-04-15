@@ -188,9 +188,8 @@ std::vector<CTransactionRef> MockMining::getTransactionsByTxID(const std::vector
 
 MemoryLoad MockMining::getMemoryLoad()
 {
-    return {
-        .usage = 0
-    };
+    LOCK(state->m);
+    return state->memory_load;
 }
 
 uint64_t MockMining::GetTemplateSeq()
@@ -231,6 +230,11 @@ void MockMining::TriggerNewTip()
     state->chain.height++;
     state->chain.prev_hash = HashFromHeight(state->chain.height);
     state->cv.notify_all();
+}
+void MockMining::SetMemoryLoad(uint64_t usage)
+{
+    LOCK(state->m);
+    state->memory_load = {.usage = usage};
 }
 void MockMining::Shutdown()
 {

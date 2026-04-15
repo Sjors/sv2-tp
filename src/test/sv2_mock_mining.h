@@ -57,6 +57,7 @@ struct MockState {
     std::queue<MockEvent> events;    // queued events driving waitNext()
     std::condition_variable_any cv;
     int wait_next_waiters{0};
+    MemoryLoad memory_load;
     bool shutdown{false};
     uint64_t wait_interrupt_generation{0};
 };
@@ -115,6 +116,7 @@ public:
     //! concurrent waitNext() caller, each of which returns a template for the
     //! new tip.
     void TriggerNewTip();
+    void SetMemoryLoad(uint64_t usage);
     void Shutdown();
 
     // Wait until internal template sequence reaches at least target (returns false on timeout/shutdown)
