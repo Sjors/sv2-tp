@@ -23,9 +23,9 @@ jobs:
           - name: v32.0rc2
             version: '32.0rc2'
             ref: ''
-          - name: master
+          - name: memusage
             version: ''
-            ref: master
+            ref: refs/pull/33922/head
         scenario:
           - name: end-to-end mining
             id: mining
