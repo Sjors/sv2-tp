@@ -12,6 +12,23 @@ function(add_libmultiprocess subdir)
   target_link_libraries(multiprocess PUBLIC $<BUILD_INTERFACE:core_interface>)
   target_link_libraries(mputil PUBLIC $<BUILD_INTERFACE:core_interface>)
   target_link_libraries(mpgen PUBLIC $<BUILD_INTERFACE:core_interface>)
+  # A public libmultiprocess header uses C++23 lambda attribute syntax while
+  # this project still targets C++20. Clang accepts the extension, but warns
+  # about it under WERROR, so propagate the suppression to consumers.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    try_append_cxx_flags("-Wc++23-lambda-attributes" SKIP_LINK
+      RESULT_VAR compiler_supports_cxx23_lambda_attributes)
+    if(compiler_supports_cxx23_lambda_attributes)
+      set(cxx23_lambda_warning -Wno-c++23-lambda-attributes)
+    else()
+      try_append_cxx_flags("-Wc++23-extensions" SKIP_LINK
+        RESULT_VAR compiler_supports_cxx23_extensions)
+      if(compiler_supports_cxx23_extensions)
+        set(cxx23_lambda_warning -Wno-c++23-extensions)
+      endif()
+    endif()
+    target_compile_options(multiprocess PUBLIC ${cxx23_lambda_warning})
+  endif()
   # Mark capproto options as advanced to hide by default from cmake UI
   mark_as_advanced(CapnProto_DIR)
   mark_as_advanced(CapnProto_capnpc_IMPORTED_LOCATION)
