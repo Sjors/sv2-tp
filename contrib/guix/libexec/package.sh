@@ -73,7 +73,6 @@ set -o errexit -o pipefail
             (
                 cd ./windeploy
                 mkdir -p unsigned
-                cp --target-directory=unsigned/ "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
                 cp -r --target-directory=unsigned/ "${INSTALLPATH}"
                 find unsigned/ -name "*.dbg" -print0 \
                     | xargs -0r rm
