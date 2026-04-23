@@ -175,13 +175,8 @@ mkdir -p "$DISTSRC"
 
     mkdir -p "$OUTDIR"
 
-    # Make the os-specific installers
-    case "$HOST" in
-        *mingw*)
-            cmake --build build -j "$JOBS" -t deploy
-            mv build/sv2-tp-win64-setup.exe "${OUTDIR}/${DISTNAME}-win64-setup-unsigned.exe"
-            ;;
-    esac
+    # Note: sv2-tp has no GUI and therefore no NSIS installer, so unlike
+    # Bitcoin Core there is no `deploy` target to invoke for *mingw* hosts.
 
     # Setup the directory where our Bitcoin Core build for HOST will be
     # installed. This directory will also later serve as the input for our
