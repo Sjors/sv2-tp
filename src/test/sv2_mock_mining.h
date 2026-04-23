@@ -57,6 +57,8 @@ struct MockState {
     std::vector<uint64_t> create_weights GUARDED_BY(m);
     //! Pause createNewBlock() after recording its options, until resumed or shut down.
     bool pause_create GUARDED_BY(m){false};
+    //! Mining::interrupt() cancels template creation, but not waitNext().
+    bool mining_interrupted GUARDED_BY(m){false};
     //! Make waitNext() throw, e.g. to simulate a failed IPC call. Protected by
     //! m, but not GUARDED_BY(m) because waitNext() waits on a std::unique_lock,
     //! like for shutdown below.

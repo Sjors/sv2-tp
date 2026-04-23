@@ -4,12 +4,17 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <interfaces/mining.h>
 #include <ipc/exception.h>
+#include <sv2/block_options.h>
+#include <sv2/template_provider.h>
+#include <sync.h>
 #include <test/sv2_mock_mining.h>
 #include <test/sv2_test_setup.h>          // Sv2BasicTestingSetup fixture
 #include <test/sv2_tp_tester.h>
 
 #include <chrono>
+#include <future>
 #include <memory>
 #include <string_view>
 
@@ -31,6 +36,50 @@ BOOST_AUTO_TEST_CASE(ipc_failure_reaches_caller)
     });
     tester.m_state->fail_get_tip = false;
     BOOST_CHECK(!tester.m_mining_proxy->getTip().has_value());
+}
+
+BOOST_AUTO_TEST_CASE(mining_interrupt_unblocks_template_creation)
+{
+    TPTester tester{};
+    tester.m_mining_control->PauseCreate(true);
+    auto create{std::async(std::launch::async, [&] {
+        return tester.m_mining_proxy->createNewBlock(node::BlockCreateOptions{});
+    })};
+    BOOST_REQUIRE(tester.m_mining_control->WaitForCreateCalls(1));
+
+    tester.m_mining_proxy->interrupt();
+    BOOST_CHECK(create.wait_for(std::chrono::milliseconds{1500}) == std::future_status::ready);
+    BOOST_CHECK(!create.get());
+    // Mining interruption is distinct from node shutdown.
+    LOCK(tester.m_state->m);
+    BOOST_CHECK(!tester.m_state->shutdown);
+}
+
+BOOST_AUTO_TEST_CASE(tp_interrupt_unblocks_wait_next)
+{
+    Sv2TemplateProviderOptions opts;
+    opts.is_test = false;
+    opts.template_interval = std::chrono::seconds{5};
+    TPTester tester{opts};
+    tester.handshake();
+    tester.SendSetupConnection();
+    tester.SendCoinbaseOutputConstraints();
+    tester.ReceiveTemplatePair();
+    BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext());
+
+    // Exercise interruptWait() over IPC before fixture teardown can unblock
+    // waitNext() through the direct mock shutdown. Mining::interrupt() alone
+    // must not release this wait.
+    const auto interrupt_start{std::chrono::steady_clock::now()};
+    tester.m_tp->Interrupt();
+    tester.m_tp->StopThreads();
+    const auto interrupt_elapsed_ms{std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - interrupt_start).count()};
+    BOOST_CHECK_MESSAGE(interrupt_elapsed_ms < 1500, "Interrupting waitNext() took " << interrupt_elapsed_ms << "ms");
+    LOCK(tester.m_state->m);
+    BOOST_CHECK(!tester.m_state->shutdown);
+    BOOST_CHECK_EQUAL(tester.m_state->wait_next_waiters, 0);
+    BOOST_CHECK_GT(tester.m_state->wait_interrupt_generation, 0U);
 }
 
 BOOST_AUTO_TEST_CASE(tp_tester_repeated_construction)
