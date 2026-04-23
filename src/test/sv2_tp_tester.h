@@ -10,7 +10,9 @@
 #include <test/util/net.h>
 #include <util/sock.h>
 
+#include <array>
 #include <memory>
+#include <mp/util.h>
 #include <thread>
 #include <vector>
 
@@ -40,7 +42,7 @@ private:
     mp::EventLoop* m_loop{nullptr};
     std::unique_ptr<interfaces::Init> m_server_init;
     std::unique_ptr<interfaces::Init> m_client_init;
-    int m_ipc_fds[2]{-1, -1};
+    std::array<mp::SocketId, 2> m_ipc_fds{mp::SocketError, mp::SocketError};
 
 public:
     std::unique_ptr<Sv2TemplateProvider> m_tp; //!< Sv2TemplateProvider being tested
