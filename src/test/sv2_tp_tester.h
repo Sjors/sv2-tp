@@ -5,12 +5,14 @@
 #ifndef BITCOIN_TEST_SV2_TP_TESTER_H
 #define BITCOIN_TEST_SV2_TP_TESTER_H
 
+#include <mp/util.h>
 #include <sv2/messages.h>
 #include <sv2/template_provider.h>
 #include <test/sv2_mock_mining.h>
 #include <test/util/net.h>
 #include <util/sock.h>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <thread>
@@ -49,7 +51,7 @@ private:
     mp::EventLoop* m_loop{nullptr};
     std::unique_ptr<interfaces::Init> m_server_init;
     std::unique_ptr<interfaces::Init> m_client_init;
-    int m_ipc_fds[2]{-1, -1};
+    std::array<mp::SocketId, 2> m_ipc_fds{mp::SocketError, mp::SocketError};
 
 public:
     std::unique_ptr<Sv2TemplateProvider> m_tp; //!< Sv2TemplateProvider being tested
