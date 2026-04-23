@@ -40,7 +40,8 @@ BOOST_AUTO_TEST_CASE(block_reserved_weight_floor)
 
 BOOST_AUTO_TEST_CASE(multiple_template_pair_trigger)
 {
-    TPTester tester{};
+    TPTesterHandle tester_handle{};
+    TPTester& tester = *tester_handle;
 
     tester.handshake();
     tester.SendSetupConnection();
@@ -233,7 +234,8 @@ BOOST_AUTO_TEST_CASE(client_tests)
 // Regression test for https://github.com/stratum-mining/sv2-tp/issues/111
 BOOST_AUTO_TEST_CASE(two_clients_receive_set_new_prev_hash)
 {
-    TPTester tester{};
+    TPTesterHandle tester_handle{};
+    TPTester& tester = *tester_handle;
 
     // Connect two clients; each gets an initial NewTemplate + SetNewPrevHash.
     for (size_t peer_id = 0; peer_id < 2; ++peer_id) {
