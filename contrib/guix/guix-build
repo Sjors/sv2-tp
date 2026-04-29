@@ -85,14 +85,6 @@ check_source_date_epoch
 export HOSTS="${HOSTS:-x86_64-linux-gnu arm-linux-gnueabihf aarch64-linux-gnu riscv64-linux-gnu powerpc64-linux-gnu
                        x86_64-apple-darwin arm64-apple-darwin}"
 
-# Usage: distsrc_for_host HOST
-#
-#   HOST: The current platform triple we're building for
-#
-distsrc_for_host() {
-    echo "${DISTSRC_BASE}/distsrc-${VERSION}-${1}"
-}
-
 # Accumulate a list of build directories that already exist...
 hosts_distsrc_exists=""
 for host in $HOSTS; do
