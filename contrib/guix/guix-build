@@ -322,9 +322,21 @@ for host in $HOSTS; do
     trap 'int_trap ${host}' INT
 
     (
-        # Required for 'contrib/guix/manifest.scm' to output the right manifest
+        # Required for 'contrib/guix/manifest_build.scm' to output the right manifest
         # for the particular $HOST we're building for
         export HOST="$host"
+
+        # Make local modules available
+        package_path="${VERSION_BASE}/guix-package-path"
+        mkdir -p "$package_path"
+        ln -sfn "${PWD}/contrib/guix/toolchains.scm" "${package_path}/toolchains.scm"
+        ln -sfn "${PWD}/contrib/guix/patches" "${package_path}/patches"
+        export GUIX_PACKAGE_PATH="$package_path"
+
+        manifest_opts=(--manifest="${PWD}/contrib/guix/manifest_build.scm")
+        case "$HOST" in
+            *linux*) manifest_opts+=(--manifest="${PWD}/contrib/guix/linux_static.scm") ;;
+        esac
 
 cat << EOF
 INFO: Building ${VERSION:?not set} for platform triple ${HOST:?not set}:
@@ -343,7 +355,7 @@ INFO: Building ${VERSION:?not set} for platform triple ${HOST:?not set}:
 EOF
 
         # Run the build script 'contrib/guix/libexec/build.sh' in the build
-        # container specified by 'contrib/guix/manifest.scm'.
+        # container specified by the build manifests.
         #
         # Explanation of `guix shell` flags:
         #
@@ -410,7 +422,7 @@ EOF
         #    more information.
         #
         # shellcheck disable=SC2086
-        time-machine shell --manifest="${PWD}/contrib/guix/manifest_build.scm" \
+        time-machine shell "${manifest_opts[@]}" \
                                  --container \
                                  --writable-root \
                                  --pure \
