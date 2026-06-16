@@ -10,12 +10,10 @@ export HOST=i686-pc-linux-gnu
 export CONTAINER_NAME=ci_i686_no_multiprocess
 export CI_IMAGE_NAME_TAG="mirror.gcr.io/ubuntu:24.04"
 export CI_IMAGE_PLATFORM="linux/amd64"
-export PACKAGES="llvm clang g++-multilib"
+export PACKAGES="g++-multilib"
 export DEP_OPTS="DEBUG=1"
 export GOAL="install"
 export TEST_RUNNER_EXTRA="--v2transport --usecli"
 export BITCOIN_CONFIG="\
  -DCMAKE_BUILD_TYPE=Debug \
- -DCMAKE_C_COMPILER='clang;-m32' \
- -DCMAKE_CXX_COMPILER='clang++;-m32' \
 "
