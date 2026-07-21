@@ -281,7 +281,7 @@ chain for " target " development."))
         python-lief)
   (let ((target (getenv "HOST")))
     (cond ((string-suffix? "-mingw32" target)
-           (list (make-mingw-pthreads-cross-toolchain "x86_64-w64-mingw32")
+           (list (make-mingw-pthreads-cross-toolchain target)
                  nsis-x86_64
                  zip))
           ((string-contains target "-linux-")
