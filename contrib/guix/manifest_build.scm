@@ -18,7 +18,6 @@
              (guix download)
              (guix gexp)
              (guix git-download)
-             ((guix licenses) #:prefix license:)
              (guix packages)
              ((guix utils) #:select (cc-for-target substitute-keyword-arguments)))
 
