@@ -20,9 +20,9 @@ os.environ["MYPY_CACHE_DIR"] = str(cache_dir)
 
 DEPS = ['lief', 'mypy']
 
-# Only .py files in contrib/devtools have type annotations
+# Only .py files in contrib/(devtools|guix) have type annotations
 # enforced.
-MYPY_FILES_ARGS = ['git', 'ls-files', 'contrib/devtools/*.py']
+MYPY_FILES_ARGS = ['git', 'ls-files', 'contrib/devtools/*.py', 'contrib/guix/*.py']
 
 
 def check_dependencies():
