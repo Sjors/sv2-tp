@@ -244,6 +244,7 @@ BOOST_AUTO_TEST_CASE(node_version_detection)
     }
 }
 
+#ifndef WIN32
 // Solutions are submitted with the current submitSolution() method, unless the
 // node only has the deprecated one, as is the case for Bitcoin Core v31.
 BOOST_AUTO_TEST_CASE(submit_solution_interface_version)
@@ -285,6 +286,13 @@ BOOST_AUTO_TEST_CASE(submit_solution_interface_version)
         tester.m_mining_control->Shutdown();
     }
 }
+#else
+// TODO: Re-enable on Windows once the libmultiprocess shutdown hang is fixed
+// upstream. SubmitSolution() spawns a detached sv2-saveblk thread that holds an
+// IPC proxy; cleaning up its per-thread state deadlocks on mingw winpthreads.
+// Tracked in libmultiprocess#231 (rewrites the EventLoop wakeup primitive and
+// adds shutdownWrite() in ~Connection) and bitcoin#32387.
+#endif
 
 // After a tip change, every connected client must receive NewTemplate
 // (future_template=true) followed by the matching SetNewPrevHash — not just
