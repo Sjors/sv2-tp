@@ -2,14 +2,13 @@
              ((gnu packages bash) #:select (bash-minimal))
              ((gnu packages cmake) #:select (cmake-minimal))
              (gnu packages commencement)
-             ((gnu packages compression) #:select (gzip xz zip))
+             ((gnu packages compression) #:select (gzip zip))
              (gnu packages cross-base)
              (gnu packages gawk)
              (gnu packages gcc)
              ((gnu packages linux) #:select (linux-libre-headers-6.1))
              (gnu packages llvm)
              (gnu packages mingw)
-             (gnu packages ninja)
              ((gnu packages python) #:select (python-minimal))
              ((gnu packages python-xyz) #:select (python-lief))
              ((gnu packages version-control) #:select (git-minimal))
@@ -279,7 +278,6 @@ chain for " target " development."))
         gcc-toolchain-14
         cmake-minimal
         gnu-make
-        ninja
         ;; Scripting
         python-minimal ;; (3.11)
         ;; Git
