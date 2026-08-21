@@ -10,8 +10,8 @@ export CONTAINER_NAME=ci_win64
 export CI_IMAGE_NAME_TAG="mirror.gcr.io/ubuntu:24.04"  # Check that https://packages.ubuntu.com/noble/g++-mingw-w64-x86-64-posix (version 13.x, similar to guix) can cross-compile
 export CI_IMAGE_PLATFORM="linux/amd64"
 export HOST=x86_64-w64-mingw32
-export PACKAGES="g++-mingw-w64-x86-64-posix nsis"
+export PACKAGES="g++-mingw-w64-x86-64-posix"
 export RUN_UNIT_TESTS=false
-export GOAL="deploy"
+export GOAL="install"
 export BITCOIN_CONFIG="-DREDUCE_EXPORTS=ON \
 -DCMAKE_CXX_FLAGS='-Wno-error=maybe-uninitialized'"
