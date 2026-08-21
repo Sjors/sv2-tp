@@ -5,6 +5,7 @@
 #ifndef BITCOIN_TEST_SV2_MOCK_MINING_H
 #define BITCOIN_TEST_SV2_MOCK_MINING_H
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <memory>
@@ -41,6 +42,12 @@ struct ChainState {
 
 struct MockState {
     Mutex m;
+    //! Make submitSolution() reject the block.
+    std::atomic<bool> reject_solution{false};
+    //! Number of calls to each submitSolution() variant, including calls that
+    //! throw because the mock node does not have the method.
+    std::atomic<int> submit_solution_calls{0};
+    std::atomic<int> submit_solution_old7_calls{0};
     ChainState chain;                // grouped chain data
     std::vector<CTransactionRef> txs; // non-coinbase transactions included in templates
     std::queue<MockEvent> events;    // queued events driving waitNext()
@@ -63,7 +70,8 @@ public:
     std::vector<int64_t> getTxSigops() override;
     node::CoinbaseTx getCoinbaseTx() override;
     std::vector<uint256> getCoinbaseMerklePath() override;
-    bool submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef) override;
+    bool submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef, std::string&, std::string&) override;
+    bool submitSolutionOld7(uint32_t, uint32_t, uint32_t, CTransactionRef) override;
 
     std::unique_ptr<interfaces::BlockTemplate> waitNext(node::BlockWaitOptions options = {}) override;
     void interruptWait() override;

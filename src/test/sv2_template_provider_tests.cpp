@@ -242,6 +242,48 @@ BOOST_AUTO_TEST_CASE(node_version_detection)
     }
 }
 
+// Solutions are submitted with the current submitSolution() method, unless the
+// node only has the deprecated one, as is the case for Bitcoin Core v31.
+BOOST_AUTO_TEST_CASE(submit_solution_interface_version)
+{
+    const struct {
+        MockNodeVersion version;
+        const char* description;
+        int expected_calls;      // calls to submitSolution()
+        int expected_old7_calls; // calls to submitSolutionOld7()
+    } cases[]{
+        {MockNodeVersion::CURRENT, "Simulate a recent node", 1, 0},
+        {MockNodeVersion::V31, "Simulate a Bitcoin Core v31 node", 0, 1},
+    };
+
+    for (const auto& test_case : cases) {
+        BOOST_TEST_MESSAGE(test_case.description);
+        TPTester tester{Sv2TemplateProviderOptions{.is_test = true}, test_case.version};
+
+        tester.handshake();
+        tester.SendSetupConnection();
+        tester.SendCoinbaseOutputConstraints();
+        tester.ReceiveTemplatePair();
+
+        node::Sv2SubmitSolutionMsg solution;
+        solution.m_template_id = 1;
+        solution.m_version = 1;
+        solution.m_header_timestamp = 0;
+        solution.m_header_nonce = 0;
+        solution.m_coinbase_tx = CMutableTransaction{*MakeDummyTx()};
+
+        tester.m_tp->SubmitSolution(solution);
+
+        BOOST_CHECK_EQUAL(tester.m_state->submit_solution_calls.load(), test_case.expected_calls);
+        BOOST_CHECK_EQUAL(tester.m_state->submit_solution_old7_calls.load(), test_case.expected_old7_calls);
+
+        // Let the sv2-saveblk thread finish, it uses the IPC connection.
+        UninterruptibleSleep(std::chrono::milliseconds{1000});
+
+        tester.m_mining_control->Shutdown();
+    }
+}
+
 // After a tip change, every connected client must receive NewTemplate
 // (future_template=true) followed by the matching SetNewPrevHash — not just
 // the client whose handler processes the new tip first.
