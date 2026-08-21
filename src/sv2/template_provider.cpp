@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <string_view>
 
 // Allow a few seconds for clients to submit a block or to request transactions
 constexpr size_t STALE_TEMPLATE_GRACE_PERIOD{10};
@@ -104,9 +105,31 @@ fs::path Sv2TemplateProvider::GetAuthorityKeyFile()
     return gArgs.GetDataDirNet() / "sv2_authority_key";
 }
 
+void Sv2TemplateProvider::DetectNodeVersion()
+{
+    // getTransactionsByTxID() was added to the Mining interface after Bitcoin
+    // Core v31. Calling it with an empty list has no side effects, and lets us
+    // find out which interface the node has before we need to know.
+    try {
+        m_mining.getTransactionsByTxID({});
+        m_node_version = NODE_VERSION_32_00;
+    } catch (const ipc::Exception& e) {
+        // ipc::Exception does not preserve the Cap'n Proto error type, so
+        // match its missing-method diagnostic. Other failures must propagate.
+        if (std::string_view{e.what()}.find("Method not implemented.") == std::string_view::npos) throw;
+        m_node_version = NODE_VERSION_31_0;
+        LogTrace(BCLog::SV2, "getTransactionsByTxID() is not available: %s\n", e.what());
+        // The IPC layer logs the failed call above as an error, so explain it.
+        LogInfo("The IPC error above is expected when connecting to Bitcoin Core v31, which "
+                "has an older mining interface\n");
+    }
+}
+
 bool Sv2TemplateProvider::Start(const Sv2TemplateProviderOptions& options)
 {
     m_options = options;
+
+    DetectNodeVersion();
 
     if (!m_connman->Start(this, m_options.host, m_options.port)) {
         return false;
