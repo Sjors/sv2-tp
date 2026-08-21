@@ -4,12 +4,14 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <ipc/exception.h>
 #include <test/sv2_mock_mining.h>
 #include <test/sv2_test_setup.h>          // Sv2BasicTestingSetup fixture
 #include <test/sv2_tp_tester.h>
 
 #include <chrono>
 #include <memory>
+#include <string_view>
 
 /*
  * Regression / lifecycle test: construct and destruct TPTester multiple times
@@ -17,6 +19,19 @@
  * This aims to catch reference counting or lingering thread issues early.
  */
 BOOST_FIXTURE_TEST_SUITE(sv2_tester_lifecycle_tests, Sv2BasicTestingSetup)
+
+BOOST_AUTO_TEST_CASE(ipc_failure_reaches_caller)
+{
+    TPTester tester{};
+    tester.m_state->fail_get_tip = true;
+    // The server throws std::runtime_error. It must reach this IPC client as
+    // ipc::Exception through the event loop's logging callback.
+    BOOST_CHECK_EXCEPTION(tester.m_mining_proxy->getTip(), ipc::Exception, [](const ipc::Exception& e) {
+        return std::string_view{e.what()}.find("mock getTip failure") != std::string_view::npos;
+    });
+    tester.m_state->fail_get_tip = false;
+    BOOST_CHECK(!tester.m_mining_proxy->getTip().has_value());
+}
 
 BOOST_AUTO_TEST_CASE(tp_tester_repeated_construction)
 {

@@ -9,6 +9,8 @@
 #include <logging.h>
 #include <sv2/messages.h>
 
+#include <stdexcept>
+
 namespace {
 static inline uint256 HashFromHeight(uint64_t h)
 {
@@ -152,7 +154,11 @@ void MockBlockTemplate::interruptWait()
 MockMining::MockMining(std::shared_ptr<MockState> st) : state(std::move(st)) {}
 bool MockMining::isTestChain() { return true; }
 bool MockMining::isInitialBlockDownload() { return false; }
-std::optional<interfaces::BlockRef> MockMining::getTip() { return std::nullopt; }
+std::optional<interfaces::BlockRef> MockMining::getTip()
+{
+    if (state->fail_get_tip) throw std::runtime_error("mock getTip failure");
+    return std::nullopt;
+}
 std::optional<interfaces::BlockRef> MockMining::waitTipChanged(uint256, MillisecondsDouble) { return std::nullopt; }
 std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node::BlockCreateOptions&, bool)
 {

@@ -5,6 +5,7 @@
 #ifndef BITCOIN_TEST_SV2_MOCK_MINING_H
 #define BITCOIN_TEST_SV2_MOCK_MINING_H
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <memory>
@@ -41,6 +42,8 @@ struct ChainState {
 
 struct MockState {
     Mutex m;
+    //! Make getTip() fail on the IPC server.
+    std::atomic<bool> fail_get_tip{false};
     ChainState chain;                // grouped chain data
     std::vector<CTransactionRef> txs; // non-coinbase transactions included in templates
     std::queue<MockEvent> events;    // queued events driving waitNext()
