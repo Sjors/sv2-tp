@@ -603,12 +603,31 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
             block_template = cached_block_template->second.second;
         }
 
-        // Submit the solution to construct and process the block
-        const bool submitted = block_template->submitSolution(
-            solution.m_version,
-            solution.m_header_timestamp,
-            solution.m_header_nonce,
-            MakeTransactionRef(solution.m_coinbase_tx));
+        // Submit the solution to construct and process the block, using the
+        // method that DetectNodeVersion() found.
+        const CTransactionRef coinbase_tx{MakeTransactionRef(solution.m_coinbase_tx)};
+        std::string reason, debug;
+        bool submitted{false};
+
+        if (m_node_version < NODE_VERSION_31_99) {
+            submitted = block_template->submitSolutionOld7(solution.m_version,
+                                                           solution.m_header_timestamp,
+                                                           solution.m_header_nonce,
+                                                           coinbase_tx);
+        } else {
+            submitted = block_template->submitSolution(solution.m_version,
+                                                       solution.m_header_timestamp,
+                                                       solution.m_header_nonce,
+                                                       coinbase_tx,
+                                                       reason,
+                                                       debug);
+        }
+
+        if (!submitted) {
+            LogWarning("Block was not accepted as a new block: %s%s\n",
+                       reason.empty() ? std::string{"unknown reason"} : reason,
+                       debug.empty() ? std::string{} : strprintf(" (%s)", debug));
+        }
 
         SaveBlockAsync(block_template, submitted);
 }

@@ -10,6 +10,9 @@ sv2-tp requires **Bitcoin Core v31.0 or later** compiled with IPC support
 **Compatibility note**
 - `sv2-tp` v1.0.6 is the last release that works with Bitcoin Core v30.2
 - Current `sv2-tp` depends on the Bitcoin Core v31.0 IPC mining interface
+- Bitcoin Core master changed `submitSolution()` after v31.0. Both variants are
+  supported: which one to use is determined when the IPC connection is made,
+  so that submitting a solution is not delayed.
 
 To check your Bitcoin Core version:
 ```sh

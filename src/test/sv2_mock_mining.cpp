@@ -65,7 +65,22 @@ std::vector<CAmount> MockBlockTemplate::getTxFees()
 std::vector<int64_t> MockBlockTemplate::getTxSigops() { return {}; }
 node::CoinbaseTx MockBlockTemplate::getCoinbaseTx() { return ExtractCoinbaseTx(block.vtx[0]); }
 std::vector<uint256> MockBlockTemplate::getCoinbaseMerklePath() { return {}; }
-bool MockBlockTemplate::submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef) { return true; }
+bool MockBlockTemplate::submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef, std::string& reason, std::string& debug)
+{
+    ++state->submit_solution_calls;
+    if (state->reject_solution) {
+        reason = "duplicate";
+        debug = "block already known";
+        return false;
+    }
+    return true;
+}
+
+bool MockBlockTemplate::submitSolutionOld7(uint32_t, uint32_t, uint32_t, CTransactionRef)
+{
+    ++state->submit_solution_old7_calls;
+    return !state->reject_solution;
+}
 
 std::unique_ptr<interfaces::BlockTemplate> MockBlockTemplate::waitNext(node::BlockWaitOptions options)
 {
