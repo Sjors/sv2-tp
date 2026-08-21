@@ -89,10 +89,7 @@ mkdir -p "$DISTSRC"
                                  -sigin codesignatures/win/"${bin_base}".pem
             done
 
-            # Move installer to outdir
             cd "${WORKDIR}"
-            find . -name "*setup.exe" -print0 \
-                | xargs -0r mv --target-directory="${OUTDIR}"
 
             # Make .zip from binaries
             find "${DISTNAME}" -print0 \
