@@ -88,6 +88,8 @@ public:
     std::unique_ptr<interfaces::BlockTemplate> createNewBlock(const node::BlockCreateOptions&, bool cooldown) override;
     void interrupt() override;
     bool checkBlock(const CBlock&, const node::BlockCheckOptions&, std::string&, std::string&) override;
+    bool submitBlock(const CBlock&, std::string&, std::string&) override;
+    std::vector<CTransactionRef> getTransactionsByTxID(const std::vector<Txid>&) override;
 
     // Accessors for tests (thread-safe)
     uint64_t GetTemplateSeq();

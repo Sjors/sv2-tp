@@ -162,6 +162,8 @@ std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node
 }
 void MockMining::interrupt() { LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "mock interrupt()"); }
 bool MockMining::checkBlock(const CBlock&, const node::BlockCheckOptions&, std::string&, std::string&) { return true; }
+bool MockMining::submitBlock(const CBlock&, std::string&, std::string&) { return true; }
+std::vector<CTransactionRef> MockMining::getTransactionsByTxID(const std::vector<Txid>&) { return {}; }
 
 uint64_t MockMining::GetTemplateSeq()
 {

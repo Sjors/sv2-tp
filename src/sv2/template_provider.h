@@ -16,6 +16,18 @@ using interfaces::BlockTemplate;
 
 class CBlock;
 
+/**
+ * Node versions, using the same scheme as Bitcoin Core's CLIENT_VERSION:
+ * 10000 * major + 100 * minor + build.
+ *
+ * Versions can only be told apart by which methods their mining interface
+ * has, so these are the oldest version that could be on the other end.
+ */
+//! Bitcoin Core v31.0, the oldest release we support
+static constexpr int NODE_VERSION_31_0{310000};
+//! Bitcoin Core master (v31.99.0), which changed the mining interface
+static constexpr int NODE_VERSION_31_99{319900};
+
 struct Sv2TemplateProviderOptions
 {
     /**
@@ -106,6 +118,21 @@ private:
     std::chrono::nanoseconds m_last_block_time GUARDED_BY(m_tp_mutex);
 
     /**
+     * Version of the node we're connected to, as far as its mining interface
+     * lets us tell versions apart.
+     *
+     * Determined by DetectNodeVersion() when the template provider starts, so
+     * that time critical calls don't need a round trip to find out.
+     */
+    std::atomic<int> m_node_version{NODE_VERSION_31_0};
+
+    /**
+     * Set m_node_version by calling a mining interface method that Bitcoin
+     * Core v31 does not have.
+     */
+    void DetectNodeVersion();
+
+    /**
      * A cache that maps ids used in NewTemplate messages and its associated
      * <prevhash,block template>.
      */
@@ -124,6 +151,9 @@ public:
      * returns false if port is unable to bind.
      */
     [[nodiscard]] bool Start(const Sv2TemplateProviderOptions& options = {});
+
+    /** Version of the node, as determined by DetectNodeVersion() */
+    int GetNodeVersion() const { return m_node_version; }
 
     /**
      * The main thread for the template provider, contains an event loop handling
