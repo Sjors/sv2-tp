@@ -11,7 +11,12 @@ export CONTAINER_NAME=ci_i686_no_multiprocess
 export CI_IMAGE_NAME_TAG="mirror.gcr.io/ubuntu:24.04"
 export CI_IMAGE_PLATFORM="linux/amd64"
 export PACKAGES="llvm clang g++-multilib"
-export DEP_OPTS="DEBUG=1"
+# Build depends with the same compiler as the rest of the build. Mixing them
+# is not safe: DEBUG=1 adds -D_GLIBCXX_DEBUG (see depends/hosts/linux.mk),
+# which changes libstdc++ class layouts, so libraries built by one compiler
+# can't be used from code built by the other. It crashes when an IPC server
+# method throws, and the kj::Exception is passed from libkj to sv2-tp.
+export DEP_OPTS="DEBUG=1 i686_linux_CC='clang -m32' i686_linux_CXX='clang++ -m32'"
 export GOAL="install"
 export TEST_RUNNER_EXTRA="--v2transport --usecli"
 export BITCOIN_CONFIG="\
