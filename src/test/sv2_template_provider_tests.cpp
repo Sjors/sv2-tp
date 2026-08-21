@@ -1,6 +1,7 @@
 #include <boost/test/unit_test.hpp>
 #include <interfaces/init.h>
 #include <interfaces/mining.h>
+#include <ipc/exception.h>
 #include <sv2/block_options.h>
 #include <sv2/messages.h>
 #include <test/sv2_test_setup.h>
@@ -17,12 +18,13 @@
 #include <test/sv2_tp_tester.h>
 
 #include <algorithm>
+#include <exception>
 #include <future>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <thread>
-
-// TPTester handles IPC glue internally; no need to include IPC headers here
+#include <type_traits>
 
 // For verbose debugging use:
 // build/src/test/test_sv2 --run_test=sv2_template_provider_tests --log_level=all -- -debug=sv2 -loglevel=sv2:trace | grep -v disabled
@@ -224,6 +226,48 @@ BOOST_AUTO_TEST_CASE(client_tests)
 
     // Interrupt waitNext()
     tester.m_mining_control->Shutdown();
+}
+
+// The node version is determined when the template provider starts.
+BOOST_AUTO_TEST_CASE(node_version_detection)
+{
+    {
+        TPTester tester{Sv2TemplateProviderOptions{.is_test = true}, MockNodeVersion::CURRENT};
+        BOOST_CHECK_EQUAL(tester.m_tp->GetNodeVersion(), NODE_VERSION_32_00);
+        tester.m_mining_control->Shutdown();
+    }
+    {
+        BOOST_TEST_MESSAGE("Simulate a Bitcoin Core v31 node");
+        TPTester tester{Sv2TemplateProviderOptions{.is_test = true}, MockNodeVersion::V31};
+        BOOST_CHECK_EQUAL(tester.m_tp->GetNodeVersion(), NODE_VERSION_31_0);
+        tester.m_mining_control->Shutdown();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(node_version_detection_propagates_errors)
+{
+    struct FailingMining : MockMining {
+        using MockMining::MockMining;
+        std::exception_ptr error;
+        std::vector<CTransactionRef> getTransactionsByTxID(const std::vector<Txid>&) override
+        {
+            std::rethrow_exception(error);
+        }
+    };
+
+    const auto check_error = [](const auto& error) {
+        FailingMining mining{std::make_shared<MockState>()};
+        mining.error = std::make_exception_ptr(error);
+        Sv2TemplateProvider tp{mining};
+        BOOST_CHECK_EXCEPTION((void)tp.Start(Sv2TemplateProviderOptions{.is_test = true}), std::decay_t<decltype(error)>, [&error](const auto& e) {
+            return std::string{e.what()} == error.what();
+        });
+    };
+
+    check_error(ipc::Exception{"IPC client method call interrupted by disconnect."});
+    check_error(ipc::Exception{"kj::Exception: remote exception: getTransactionsByTxID failed"});
+    // The diagnostic alone is insufficient without the IPC exception type.
+    check_error(std::runtime_error{"Method not implemented."});
 }
 
 // After a tip change, every connected client must receive NewTemplate

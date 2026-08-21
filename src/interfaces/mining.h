@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace node {
@@ -154,6 +155,31 @@ public:
      * For signets the challenge verification is skipped when check_pow is false.
      */
     virtual bool checkBlock(const CBlock& block, const node::BlockCheckOptions& options, std::string& reason, std::string& debug) = 0;
+
+    /**
+     * Process a fully assembled block.
+     *
+     * Not used by sv2-tp, but needed to keep the capnp ordinals in sync with
+     * Bitcoin Core, see mining.capnp.
+     *
+     * @param[in]  block  the complete block to submit
+     * @param[out] reason failure reason (BIP22)
+     * @param[out] debug  more detailed rejection reason
+     * @returns           true if the block was accepted as a new block
+     */
+    virtual bool submitBlock(const CBlock& block, std::string& reason, std::string& debug) = 0;
+
+    /**
+     * Fetch raw transactions from the mempool by txid.
+     *
+     * sv2-tp only uses this to detect the version of the node's mining
+     * interface, see Sv2TemplateProvider::DetectNodeVersion().
+     *
+     * @param[in] txids   transaction ids to look up
+     * @returns           one entry per requested txid containing the
+     *                    transaction if found, otherwise nullptr
+     */
+    virtual std::vector<CTransactionRef> getTransactionsByTxID(const std::vector<Txid>& txids) = 0;
 
     //! Get internal node context. Useful for RPC and testing,
     //! but not accessible across processes.
