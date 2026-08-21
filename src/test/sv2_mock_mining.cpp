@@ -168,6 +168,8 @@ void MockMining::interrupt()
     state->cv.notify_all();
 }
 bool MockMining::checkBlock(const CBlock&, const node::BlockCheckOptions&, std::string&, std::string&) { return true; }
+bool MockMining::submitBlock(const CBlock&, std::string&, std::string&) { return true; }
+std::vector<CTransactionRef> MockMining::getTransactionsByTxID(const std::vector<Txid>&) { return {}; }
 
 uint64_t MockMining::GetTemplateSeq()
 {

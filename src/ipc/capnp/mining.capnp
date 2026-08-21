@@ -1,4 +1,4 @@
-# Copyright (c) 2024 The Bitcoin Core developers
+# Copyright (c) 2024-present The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -25,6 +25,12 @@ interface Mining $Proxy.wrap("interfaces::Mining") {
     createNewBlock @4 (context :Proxy.Context, options: BlockCreateOptions, cooldown: Bool = true) -> (result: BlockTemplate);
     checkBlock @5 (context :Proxy.Context, block: Data, options: BlockCheckOptions) -> (reason: Text, debug: Text, result: Bool);
     interrupt @6 () -> ();
+
+    # Not used by sv2-tp, but declared because capnp ordinals must be
+    # sequential and getTransactionsByTxID() is used to detect the node
+    # version, see Sv2TemplateProvider::DetectNodeVersion().
+    submitBlock @7 (context :Proxy.Context, block: Data) -> (reason: Text, debug: Text, result: Bool);
+    getTransactionsByTxID @8 (context :Proxy.Context, txids: List(Data)) -> (result: List(Data));
 }
 
 interface BlockTemplate $Proxy.wrap("interfaces::BlockTemplate") {

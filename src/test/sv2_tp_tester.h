@@ -5,12 +5,14 @@
 #ifndef BITCOIN_TEST_SV2_TP_TESTER_H
 #define BITCOIN_TEST_SV2_TP_TESTER_H
 
-#include <sv2/template_provider.h>
 #include <sv2/messages.h>
+#include <sv2/template_provider.h>
+#include <test/sv2_mock_mining.h>
 #include <test/util/net.h>
 #include <util/sock.h>
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <mp/util.h>
 #include <thread>
@@ -22,9 +24,17 @@ namespace mp { class EventLoop; }
 namespace mp { class Connection; }
 namespace interfaces { class Init; class Mining; }
 
-struct MockState;
-class MockMining;
 struct MockInit;
+
+//! Which version of the mining interface the simulated node has. Methods that
+//! it does not have throw, like they do when the IPC layer finds that the
+//! other side does not implement them.
+enum class MockNodeVersion : uint8_t {
+    //! Has getTransactionsByTxID() and submitSolution() with reason and debug.
+    CURRENT,
+    //! Bitcoin Core v31: has neither.
+    V31,
+};
 
 class TPTester {
 private:
@@ -55,7 +65,8 @@ public:
     std::unique_ptr<interfaces::Mining> m_mining_proxy; // IPC mining proxy
 
     TPTester();
-    explicit TPTester(Sv2TemplateProviderOptions opts);
+    /** @param[in] version Mining interface version of the simulated node */
+    explicit TPTester(Sv2TemplateProviderOptions opts, MockNodeVersion version = MockNodeVersion::CURRENT);
     ~TPTester();
 
     void SendPeerBytes(size_t peer_id = 0);

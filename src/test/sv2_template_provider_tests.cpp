@@ -228,6 +228,22 @@ BOOST_AUTO_TEST_CASE(client_tests)
     tester.m_mining_control->Shutdown();
 }
 
+// The node version is determined when the template provider starts.
+BOOST_AUTO_TEST_CASE(node_version_detection)
+{
+    {
+        TPTester tester{Sv2TemplateProviderOptions{.is_test = true}, MockNodeVersion::CURRENT};
+        BOOST_CHECK_EQUAL(tester.m_tp->GetNodeVersion(), NODE_VERSION_31_99);
+        tester.m_mining_control->Shutdown();
+    }
+    {
+        BOOST_TEST_MESSAGE("Simulate a Bitcoin Core v31 node");
+        TPTester tester{Sv2TemplateProviderOptions{.is_test = true}, MockNodeVersion::V31};
+        BOOST_CHECK_EQUAL(tester.m_tp->GetNodeVersion(), NODE_VERSION_31_0);
+        tester.m_mining_control->Shutdown();
+    }
+}
+
 // After a tip change, every connected client must receive NewTemplate
 // (future_template=true) followed by the matching SetNewPrevHash — not just
 // the client whose handler processes the new tip first.
