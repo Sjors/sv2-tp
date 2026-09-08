@@ -329,7 +329,7 @@ void Sv2HandshakeState::WriteMsgES(std::span<std::byte> msg)
     if (!m_symmetric_state.EncryptAndHash(m_static_ellswift_pk, msg.subspan(ELLSWIFT_PUB_KEY_SIZE, ELLSWIFT_PUB_KEY_SIZE + Poly1305::TAGLEN))) {
         // This should never happen
         Assume(false);
-        throw std::runtime_error("Failed to encrypt our ephemeral key\n");
+        throw std::runtime_error("Failed to encrypt our static EllSwift public key\n");
     }
 
     bytes_written += ELLSWIFT_PUB_KEY_SIZE + Poly1305::TAGLEN;
@@ -346,17 +346,17 @@ void Sv2HandshakeState::WriteMsgES(std::span<std::byte> msg)
     m_symmetric_state.MixKey(ecdh_static_secret);
     m_symmetric_state.LogChainingKey();
 
-    // Serialize our digital signature noise message and encrypt.
+    // Serialize and encrypt SIGNATURE_NOISE_MESSAGE.
     DataStream ss{};
     Assume(m_certificate);
     ss << m_certificate.value();
     Assume(ss.size() == Sv2SignatureNoiseMessage::SIZE);
 
-    LogTrace(BCLog::SV2, "Encrypt certificate: %s\n", HexStr(ss));
+    LogTrace(BCLog::SV2, "Encrypt SIGNATURE_NOISE_MESSAGE: %s\n", HexStr(ss));
     if (!m_symmetric_state.EncryptAndHash(ss, msg.subspan(bytes_written, Sv2SignatureNoiseMessage::SIZE + Poly1305::TAGLEN))) {
         // This should never happen
         Assume(false);
-        throw std::runtime_error("Failed to encrypt our certificate\n");
+        throw std::runtime_error("Failed to encrypt SIGNATURE_NOISE_MESSAGE\n");
     }
 
     LogTrace(BCLog::SV2, "Mix hash: %s\n", HexStr(m_symmetric_state.GetHashOutput()));
@@ -408,7 +408,7 @@ bool Sv2HandshakeState::ReadMsgES(std::span<std::byte> msg)
     m_symmetric_state.MixKey(ecdh_static_secret);
     m_symmetric_state.LogChainingKey();
 
-    LogTrace(BCLog::SV2, "Decrypt remote certificate\n");
+    LogTrace(BCLog::SV2, "Decrypt remote SIGNATURE_NOISE_MESSAGE\n");
     std::array<std::byte, Sv2SignatureNoiseMessage::SIZE> remote_cert_bytes;
     res = m_symmetric_state.DecryptAndHash(msg.subspan(bytes_read, Sv2SignatureNoiseMessage::SIZE + Poly1305::TAGLEN), remote_cert_bytes);
     if (!res) return false;
