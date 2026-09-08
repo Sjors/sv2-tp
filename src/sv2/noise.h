@@ -15,7 +15,7 @@
 
 /** The Noise Protocol Framework
  *  https://noiseprotocol.org/noise.html
- *  Revision 38, 2018-07-11
+ *  Revision 34, 2018-07-11
  *
  *  Stratum v2 handshake and cipher specification:
  *  https://github.com/stratum-mining/sv2-spec/blob/main/04-Protocol-Security.md
