@@ -38,10 +38,10 @@ public:
      *  HANDSHAKE_STEP_1 -> HANDSHAKE_STEP_2 -> APP -> APP_READY
      */
     enum class RecvState : uint8_t {
-        /** Handshake Act 1: -> E */
+        /** NX-handshake part 1: -> e */
         HANDSHAKE_STEP_1,
 
-        /** Handshake Act 2: <- e, ee, s, es, SIGNATURE_NOISE_MESSAGE */
+        /** NX-handshake part 2: <- e, ee, s, es (payload: SIGNATURE_NOISE_MESSAGE) */
         HANDSHAKE_STEP_2,
 
         /** Application packet.
@@ -70,10 +70,10 @@ public:
      *  HANDSHAKE_STEP_1 -> HANDSHAKE_STEP_2 -> READY
      */
     enum class SendState : uint8_t {
-        /** Handshake Act 1: -> E */
+        /** NX-handshake part 1: -> e */
         HANDSHAKE_STEP_1,
 
-        /** Handshake Act 2: <- e, ee, s, es, SIGNATURE_NOISE_MESSAGE */
+        /** NX-handshake part 2: <- e, ee, s, es (payload: SIGNATURE_NOISE_MESSAGE) */
         HANDSHAKE_STEP_2,
 
         /** Normal sending state.
@@ -122,9 +122,9 @@ private:
     static std::optional<std::string> GetMessageType(std::span<const uint8_t>& contents) noexcept;
     /** Determine how many received bytes can be processed in one go (not allowed in V1 state). */
     size_t GetMaxBytesToProcess() noexcept EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex);
-    /** Put our ephemeral public key in the send buffer. */
+    /** Put our 64-byte ephemeral ELLSWIFT_PUBKEY in the send buffer (NX-handshake part 1). */
     void StartSendingHandshake() noexcept EXCLUSIVE_LOCKS_REQUIRED(m_send_mutex, !m_recv_mutex);
-    /** Put second part of the handshake in the send buffer. */
+    /** Put the 234-byte NX-handshake part 2 message in the send buffer. */
     void SendHandshakeReply() noexcept EXCLUSIVE_LOCKS_REQUIRED(m_send_mutex, m_recv_mutex);
     /** Process bytes in m_recv_buffer, while in HANDSHAKE_STEP_1 state. */
     bool ProcessReceivedEphemeralKeyBytes() noexcept EXCLUSIVE_LOCKS_REQUIRED(m_recv_mutex, !m_send_mutex);

@@ -220,17 +220,18 @@ public:
         m_static_ellswift_pk = static_key.EllSwiftCreate(MakeByteSpan(GetRandHash()));
     };
 
-    /** Handshake step 1 for initiator: -> e */
+    /** NX-handshake part 1 initiator: write the 64-byte ELLSWIFT_PUBKEY (-> e). */
     void WriteMsgEphemeralPK(std::span<std::byte> msg);
-    /** Handshake step 1 for responder: -> e */
+    /** NX-handshake part 1 responder: read the 64-byte ELLSWIFT_PUBKEY (-> e). */
     void ReadMsgEphemeralPK(std::span<std::byte> msg);
-    /** During handshake step 2, put our ephmeral key, static key
-     * and certificate in the buffer: <- e, ee, s, es, SIGNATURE_NOISE_MESSAGE
+    /** NX-handshake part 2 responder: write the ephemeral ELLSWIFT_PUBKEY, encrypted
+     * static ELLSWIFT_PUBKEY, and encrypted SIGNATURE_NOISE_MESSAGE payload to the
+     * buffer (<- e, ee, s, es).
      */
     void WriteMsgES(std::span<std::byte> msg);
-    /** During handshake step 2, read the remote ephmeral key, static key
-     * and certificate. Verify their certificate.
-     * <- e, ee, s, es, SIGNATURE_NOISE_MESSAGE
+    /** NX-handshake part 2 initiator: read the remote ephemeral ELLSWIFT_PUBKEY,
+     * encrypted static ELLSWIFT_PUBKEY, and encrypted SIGNATURE_NOISE_MESSAGE
+     * payload, then verify the resulting certificate (<- e, ee, s, es).
      */
     [[nodiscard]] bool ReadMsgES(std::span<std::byte> msg);
 
@@ -242,11 +243,11 @@ public:
 private:
     /** Our static key (s) */
     CKey m_static_key;
-    /** EllSwift encoded static key, for optimized ECDH */
+    /** Our static key encoded as an ELLSWIFT_PUBKEY for the handshake. */
     EllSwiftPubKey m_static_ellswift_pk;
     /** Our ephemeral key (e) */
     CKey m_ephemeral_key;
-    /** EllSwift encoded ephemeral key, for optimized ECDH */
+    /** Our ephemeral key encoded as an ELLSWIFT_PUBKEY for the handshake. */
     EllSwiftPubKey m_ephemeral_ellswift_pk;
     /** Remote static key (rs) */
     EllSwiftPubKey m_remote_static_ellswift_pk;
@@ -258,7 +259,7 @@ private:
     /** Authority public key. */
     std::optional<XOnlyPubKey> m_authority_pubkey;
 
-    /** Generate ephemeral key, sets set m_ephemeral_key and m_ephemeral_ellswift_pk */
+    /** Generate an ephemeral key and its ELLSWIFT_PUBKEY encoding. */
     void GenerateEphemeralKey() noexcept;
 };
 

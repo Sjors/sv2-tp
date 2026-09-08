@@ -128,7 +128,7 @@ FUZZ_TARGET(sv2_noise_cipher_roundtrip, .init = Sv2FuzzInitialize)
     auto bob_handshake = std::make_unique<Sv2HandshakeState>(std::move(bob_static_key), std::move(bob_certificate));
     bob_handshake->SetEphemeralKey(std::move(bob_ephemeral_key));
 
-    // Handshake Act 1: e ->
+    // NX-handshake part 1: -> e
 
     std::vector<std::byte> transport;
     transport.resize(Sv2HandshakeState::ELLSWIFT_PUB_KEY_SIZE);
@@ -137,12 +137,12 @@ FUZZ_TARGET(sv2_noise_cipher_roundtrip, .init = Sv2FuzzInitialize)
 
     bool damage_e = MaybeDamage(provider, transport);
 
-    // Bob reads the ephemeral key ()
+    // Bob reads the ephemeral key
     // With EllSwift encoding this step can't fail
     bob_handshake->ReadMsgEphemeralPK(transport);
     ClearShrink(transport);
 
-    // Handshake Act 2: <- e, ee, s, es, SIGNATURE_NOISE_MESSAGE
+    // NX-handshake part 2: <- e, ee, s, es (payload: SIGNATURE_NOISE_MESSAGE)
     transport.resize(Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
     bob_handshake->WriteMsgES(transport);
 

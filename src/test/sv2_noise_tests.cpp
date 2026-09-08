@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(handshake_and_transport_test)
     auto bob_handshake = std::make_unique<Sv2HandshakeState>(std::move(bob_static_key),
                                                              std::move(bob_certificate));
 
-    // Handshake Act 1: e ->
+    // NX-handshake part 1: -> e
 
     std::vector<std::byte> transport;
     transport.resize(Sv2HandshakeState::ELLSWIFT_PUB_KEY_SIZE);
@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(handshake_and_transport_test)
 
     ClearShrink(transport);
 
-    // Handshake Act 2: <- e, ee, s, es, SIGNATURE_NOISE_MESSAGE
+    // NX-handshake part 2: <- e, ee, s, es (payload: SIGNATURE_NOISE_MESSAGE)
     transport.resize(Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
     bob_handshake->WriteMsgES(transport);
     BOOST_REQUIRE(alice_handshake->ReadMsgES(transport));

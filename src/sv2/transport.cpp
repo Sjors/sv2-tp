@@ -290,7 +290,7 @@ bool Sv2Transport::ProcessReceivedEphemeralKeyBytes() noexcept
 
     if (m_recv_buffer.size() == Sv2HandshakeState::ELLSWIFT_PUB_KEY_SIZE) {
         // Other side's key has been fully received, and can now be Diffie-Hellman
-        // combined with our key. This is act 1 of the Noise Protocol handshake.
+        // combined with our key. This is NX-handshake part 1.
         // TODO handle failure
         // TODO: MakeByteSpan instead of MakeWritableByteSpan
         m_cipher.GetHandshakeState().ReadMsgEphemeralPK(MakeWritableByteSpan(m_recv_buffer));
@@ -300,7 +300,7 @@ bool Sv2Transport::ProcessReceivedEphemeralKeyBytes() noexcept
         LOCK(m_send_mutex);
         Assume(m_send_buffer.size() == 0);
 
-        // Send our act 2 handshake
+        // Send NX-handshake part 2
         SendHandshakeReply();
     } else {
         // We still have to receive more key bytes.
