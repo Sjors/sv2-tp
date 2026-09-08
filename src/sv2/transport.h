@@ -153,7 +153,7 @@ public:
       * @param[in] static_key a securely generated key
 
       */
-    Sv2Transport(CKey static_key, Sv2SignatureNoiseMessage certificate) noexcept;
+    Sv2Transport(CKey static_key, Sv2Certificate certificate) noexcept;
 
     // Receive side functions.
     bool ReceivedMessageComplete() const noexcept override EXCLUSIVE_LOCKS_REQUIRED(!m_recv_mutex);

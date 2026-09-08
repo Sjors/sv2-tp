@@ -48,24 +48,24 @@ BOOST_AUTO_TEST_CASE(certificate_test)
 
     // Check that certificate is not from the future
     valid_from = now + 10000; // definitely in the future relative to 'now'
-    alice_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
-                                                 XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
+    alice_certificate = Sv2Certificate(version, valid_from, valid_to,
+                                       XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
     BOOST_REQUIRE(!alice_certificate.Validate(XOnlyPubKey(alice_authority_key.GetPubKey())));
 
     valid_from = now;
 
     // Check certificate expiration
     valid_to = now - 10000;
-    alice_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
-                                                 XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
+    alice_certificate = Sv2Certificate(version, valid_from, valid_to,
+                                       XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
     BOOST_REQUIRE(!alice_certificate.Validate(XOnlyPubKey(alice_authority_key.GetPubKey())));
 
     valid_to = now;
 
     // Only version 0 is supported
     version = 1;
-    alice_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
-                                                 XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
+    alice_certificate = Sv2Certificate(version, valid_from, valid_to,
+                                       XOnlyPubKey(alice_static_key.GetPubKey()), alice_authority_key);
     BOOST_REQUIRE(!alice_certificate.Validate(XOnlyPubKey(alice_authority_key.GetPubKey())));
 }
 

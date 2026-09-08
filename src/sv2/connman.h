@@ -146,7 +146,7 @@ private:
 
     XOnlyPubKey m_authority_pubkey;
 
-    std::optional<Sv2SignatureNoiseMessage> m_certificate;
+    std::optional<Sv2Certificate> m_certificate;
 
     /**
      * A map of all connected stratum v2 clients.
@@ -203,7 +203,7 @@ private:
     std::vector<node::Sv2NetMsg> ReadAndDecryptSv2NetMsgs(Sv2Client& client, std::span<std::byte> buffer);
 
 public:
-    Sv2Connman(uint8_t subprotocol, CKey static_key, XOnlyPubKey authority_pubkey, Sv2SignatureNoiseMessage certificate) :
+    Sv2Connman(uint8_t subprotocol, CKey static_key, XOnlyPubKey authority_pubkey, Sv2Certificate certificate) :
                m_subprotocol(subprotocol), m_static_key(static_key), m_authority_pubkey(authority_pubkey), m_certificate(certificate) {};
 
     ~Sv2Connman();

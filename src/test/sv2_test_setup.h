@@ -23,10 +23,10 @@
  * environments with slight clock skew or start-up adjustments do not cause
  * flakiness in certificate validation.
  *
- * Returns the constructed Sv2SignatureNoiseMessage and populates the timing
+ * Returns the constructed Sv2Certificate and populates the timing
  * output parameters for additional negative test cases (future start, expiry, etc.).
  */
-inline Sv2SignatureNoiseMessage MakeSkewTolerantCertificate(const CKey& static_key,
+inline Sv2Certificate MakeSkewTolerantCertificate(const CKey& static_key,
                                                            const CKey& authority_key,
                                                            uint32_t& out_now,
                                                            uint32_t& out_valid_from,
@@ -43,8 +43,8 @@ inline Sv2SignatureNoiseMessage MakeSkewTolerantCertificate(const CKey& static_k
     out_valid_from = static_cast<uint32_t>(backdated);
     out_valid_to = std::numeric_limits<unsigned int>::max();
 
-    return Sv2SignatureNoiseMessage(version, out_valid_from, out_valid_to,
-                                    XOnlyPubKey(static_key.GetPubKey()), authority_key);
+    return Sv2Certificate(version, out_valid_from, out_valid_to,
+                          XOnlyPubKey(static_key.GetPubKey()), authority_key);
 }
 
 //! Default mock time for SV2 unit tests: Bitcoin genesis block timestamp (2009-01-03).

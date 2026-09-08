@@ -11,12 +11,12 @@
 #include <util/strencodings.h>
 #include <util/time.h>
 
-Sv2SignatureNoiseMessage::Sv2SignatureNoiseMessage(uint16_t version, uint32_t valid_from, uint32_t valid_to, const XOnlyPubKey& static_key, const CKey& authority_key) : m_version{version}, m_valid_from{valid_from}, m_valid_to{valid_to}, m_static_key{static_key}
+Sv2Certificate::Sv2Certificate(uint16_t version, uint32_t valid_from, uint32_t valid_to, const XOnlyPubKey& static_key, const CKey& authority_key) : m_version{version}, m_valid_from{valid_from}, m_valid_to{valid_to}, m_static_key{static_key}
 {
     SignSchnorr(authority_key, m_sig);
 }
 
-uint256 Sv2SignatureNoiseMessage::GetHash()
+uint256 Sv2Certificate::GetHash()
 {
     DataStream ss{};
     ss << m_version
@@ -34,7 +34,7 @@ uint256 Sv2SignatureNoiseMessage::GetHash()
     return hash_output;
 }
 
-bool Sv2SignatureNoiseMessage::Validate(XOnlyPubKey authority_key)
+bool Sv2Certificate::Validate(XOnlyPubKey authority_key)
 {
     if (m_version > 0) {
         LogTrace(BCLog::SV2, "Invalid certificate version: %d\n", m_version);
@@ -57,7 +57,7 @@ bool Sv2SignatureNoiseMessage::Validate(XOnlyPubKey authority_key)
     return true;
 }
 
-void Sv2SignatureNoiseMessage::SignSchnorr(const CKey& authority_key, std::span<unsigned char> sig)
+void Sv2Certificate::SignSchnorr(const CKey& authority_key, std::span<unsigned char> sig)
 {
     authority_key.SignSchnorr(this->GetHash(), sig, nullptr, {});
 }
@@ -350,10 +350,10 @@ void Sv2HandshakeState::WriteMsgES(std::span<std::byte> msg)
     DataStream ss{};
     Assume(m_certificate);
     ss << m_certificate.value();
-    Assume(ss.size() == Sv2SignatureNoiseMessage::SIZE);
+    Assume(ss.size() == Sv2Certificate::SIZE);
 
     LogTrace(BCLog::SV2, "Encrypt SIGNATURE_NOISE_MESSAGE: %s\n", HexStr(ss));
-    if (!m_symmetric_state.EncryptAndHash(ss, msg.subspan(bytes_written, Sv2SignatureNoiseMessage::SIZE + Poly1305::TAGLEN))) {
+    if (!m_symmetric_state.EncryptAndHash(ss, msg.subspan(bytes_written, Sv2Certificate::SIZE + Poly1305::TAGLEN))) {
         // This should never happen
         Assume(false);
         throw std::runtime_error("Failed to encrypt SIGNATURE_NOISE_MESSAGE\n");
@@ -361,7 +361,7 @@ void Sv2HandshakeState::WriteMsgES(std::span<std::byte> msg)
 
     LogTrace(BCLog::SV2, "Mix hash: %s\n", HexStr(m_symmetric_state.GetHashOutput()));
 
-    bytes_written += Sv2SignatureNoiseMessage::SIZE + Poly1305::TAGLEN;
+    bytes_written += Sv2Certificate::SIZE + Poly1305::TAGLEN;
     Assume(bytes_written == HANDSHAKE_STEP2_SIZE);
 }
 
@@ -409,15 +409,15 @@ bool Sv2HandshakeState::ReadMsgES(std::span<std::byte> msg)
     m_symmetric_state.LogChainingKey();
 
     LogTrace(BCLog::SV2, "Decrypt remote SIGNATURE_NOISE_MESSAGE\n");
-    std::array<std::byte, Sv2SignatureNoiseMessage::SIZE> remote_cert_bytes;
-    res = m_symmetric_state.DecryptAndHash(msg.subspan(bytes_read, Sv2SignatureNoiseMessage::SIZE + Poly1305::TAGLEN), remote_cert_bytes);
+    std::array<std::byte, Sv2Certificate::SIZE> remote_cert_bytes;
+    res = m_symmetric_state.DecryptAndHash(msg.subspan(bytes_read, Sv2Certificate::SIZE + Poly1305::TAGLEN), remote_cert_bytes);
     if (!res) return false;
-    bytes_read += (Sv2SignatureNoiseMessage::SIZE + Poly1305::TAGLEN);
+    bytes_read += (Sv2Certificate::SIZE + Poly1305::TAGLEN);
     LogTrace(BCLog::SV2, "Mix hash: %s\n", HexStr(m_symmetric_state.GetHashOutput()));
 
     LogTrace(BCLog::SV2, "Validate remote certificate\n");
     DataStream ss_cert(remote_cert_bytes);
-    Sv2SignatureNoiseMessage cert;
+    Sv2Certificate cert;
     ss_cert >> cert;
     cert.m_static_key = XOnlyPubKey(m_remote_static_ellswift_pk.Decode());
     Assume(m_authority_pubkey);
@@ -447,7 +447,7 @@ Sv2Cipher::Sv2Cipher(CKey&& static_key, XOnlyPubKey authority_pubkey)
     m_initiator = true;
 }
 
-Sv2Cipher::Sv2Cipher(CKey&& static_key, Sv2SignatureNoiseMessage&& certificate)
+Sv2Cipher::Sv2Cipher(CKey&& static_key, Sv2Certificate&& certificate)
 {
     m_handshake_state = std::make_unique<Sv2HandshakeState>(std::move(static_key), std::move(certificate));
     m_initiator = false;

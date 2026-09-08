@@ -27,15 +27,19 @@ static constexpr size_t NOISE_MAX_CHUNK_SIZE = 65535;
 static constexpr size_t HASHLEN{32};
 using NoiseHash = std::array<uint8_t, HASHLEN>;
 
-/** Simple certificate for the static key signed by the authority key.
- * See 4.5.2 and 4.5.3 of the Stratum v2 spec.
+/** CERTIFICATE for the static key, signed by the authority key. See section
+ * 4.5.3 of the Stratum v2 specification.
+ *
+ * Serializes as SIGNATURE_NOISE_MESSAGE (section 4.5.2), the payload of
+ * NX-handshake part 2. This omits the static key, which the responder sends
+ * separately in the same message.
  */
-class Sv2SignatureNoiseMessage
+class Sv2Certificate
 {
 public:
     /** Size of a Schnorr signature. */
     static constexpr size_t SCHNORR_SIGNATURE_SIZE = 64;
-    /** Size of serialized message, which does not include the static key.  */
+    /** Size of the serialized SIGNATURE_NOISE_MESSAGE, which does not include the static key. */
     static constexpr size_t SIZE = 2 + 4 + 4 + SCHNORR_SIGNATURE_SIZE;
 
 private:
@@ -49,10 +53,11 @@ private:
     void SignSchnorr(const CKey& authority_key, std::span<unsigned char> sig);
 
 public:
-    Sv2SignatureNoiseMessage() = default;
-    Sv2SignatureNoiseMessage(uint16_t version, uint32_t valid_from, uint32_t valid_to, const XOnlyPubKey& static_key, const CKey& authority_key);
+    Sv2Certificate() = default;
+    Sv2Certificate(uint16_t version, uint32_t valid_from, uint32_t valid_to, const XOnlyPubKey& static_key, const CKey& authority_key);
 
-    /* The certificate serializes pubkeys in x-only format, not EllSwift. */
+    /** The 32-byte x-only PUBKEY included in the certificate hash. This is not
+     * serialized as part of SIGNATURE_NOISE_MESSAGE. */
     XOnlyPubKey m_static_key = {};
 
     [[nodiscard]] bool Validate(XOnlyPubKey authority_key);
@@ -192,7 +197,7 @@ public:
     static constexpr size_t ECDH_OUTPUT_SIZE{32};
 
     static constexpr size_t HANDSHAKE_STEP2_SIZE = ELLSWIFT_PUB_KEY_SIZE + ELLSWIFT_PUB_KEY_SIZE +
-                                                   Poly1305::TAGLEN + Sv2SignatureNoiseMessage::SIZE + Poly1305::TAGLEN;
+                                                   Poly1305::TAGLEN + Sv2Certificate::SIZE + Poly1305::TAGLEN;
 
     /*
      * If we are the initiator m_authority_pubkey must be set in order to verify
@@ -209,8 +214,8 @@ public:
      * If we are the responder, the certificate must be set
      */
     Sv2HandshakeState(CKey&& static_key,
-                      Sv2SignatureNoiseMessage&& certificate) : m_static_key{static_key},
-                                                                m_certificate{certificate}
+                      Sv2Certificate&& certificate) : m_static_key{static_key},
+                                                      m_certificate{certificate}
     {
         m_static_ellswift_pk = static_key.EllSwiftCreate(MakeByteSpan(GetRandHash()));
     };
@@ -249,7 +254,7 @@ private:
     EllSwiftPubKey m_remote_ephemeral_ellswift_pk;
     Sv2SymmetricState m_symmetric_state;
     /** Certificate signed by m_authority_pubkey. */
-    std::optional<Sv2SignatureNoiseMessage> m_certificate;
+    std::optional<Sv2Certificate> m_certificate;
     /** Authority public key. */
     std::optional<XOnlyPubKey> m_authority_pubkey;
 
@@ -266,7 +271,7 @@ class Sv2Cipher
 {
 public:
     Sv2Cipher(CKey&& static_key, XOnlyPubKey authority_pubkey);
-    Sv2Cipher(CKey&& static_key, Sv2SignatureNoiseMessage&& certificate);
+    Sv2Cipher(CKey&& static_key, Sv2Certificate&& certificate);
 
     Sv2Cipher(bool initiator, std::unique_ptr<Sv2HandshakeState> handshake_state) : m_initiator{initiator}, m_handshake_state{std::move(handshake_state)} {};
 

@@ -75,7 +75,7 @@ FUZZ_TARGET(sv2_noise_cipher_roundtrip, .init = Sv2FuzzInitialize)
     uint32_t valid_to{0};
     uint16_t version{0};
 
-    Sv2SignatureNoiseMessage bob_certificate;
+    Sv2Certificate bob_certificate;
 
     if (use_fixture_times) {
         SetMockTime(TEST_GENESIS_TIME);
@@ -89,8 +89,8 @@ FUZZ_TARGET(sv2_noise_cipher_roundtrip, .init = Sv2FuzzInitialize)
         version = provider.ConsumeBool() ? 0 : provider.ConsumeIntegral<uint16_t>();
 
         const CKey& signing_authority_key = sign_with_expected_authority ? bob_authority_key : malory_authority_key;
-        bob_certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to,
-                                                   XOnlyPubKey(bob_static_key.GetPubKey()), signing_authority_key);
+        bob_certificate = Sv2Certificate(version, valid_from, valid_to,
+                                         XOnlyPubKey(bob_static_key.GetPubKey()), signing_authority_key);
     }
 
     SetMockTime(std::chrono::seconds{now});

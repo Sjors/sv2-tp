@@ -89,7 +89,7 @@ Sv2TemplateProvider::Sv2TemplateProvider(interfaces::Mining& mining) : m_mining{
     const uint32_t valid_from{static_cast<uint32_t>(std::min<int64_t>(backdated, std::numeric_limits<uint32_t>::max()))};
     const uint32_t valid_to{std::numeric_limits<uint32_t>::max()}; // 2106
     uint16_t version = 0;
-    Sv2SignatureNoiseMessage certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to, XOnlyPubKey(static_key.GetPubKey()), authority_key);
+    Sv2Certificate certificate = Sv2Certificate(version, valid_from, valid_to, XOnlyPubKey(static_key.GetPubKey()), authority_key);
 
     m_connman = std::make_unique<Sv2Connman>(TP_SUBPROTOCOL, static_key, m_authority_pubkey, certificate);
 }

@@ -22,7 +22,7 @@ ConnTester::ConnTester()
     uint32_t now_secs{0};
     uint32_t valid_from{0};
     uint32_t valid_to{0};
-    Sv2SignatureNoiseMessage certificate = MakeSkewTolerantCertificate(static_key, authority_key, now_secs, valid_from, valid_to);
+    Sv2Certificate certificate = MakeSkewTolerantCertificate(static_key, authority_key, now_secs, valid_from, valid_to);
 
     m_connman = std::make_unique<Sv2Connman>(TP_SUBPROTOCOL, static_key, m_connman_authority_pubkey, certificate);
 

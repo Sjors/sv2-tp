@@ -13,7 +13,7 @@
 #include <util/strencodings.h>
 #include <util/vector.h>
 
-Sv2Transport::Sv2Transport(CKey static_key, Sv2SignatureNoiseMessage certificate) noexcept
+Sv2Transport::Sv2Transport(CKey static_key, Sv2Certificate certificate) noexcept
     : m_cipher{Sv2Cipher(std::move(static_key), std::move(certificate))}, m_initiating{false},
       m_recv_state{RecvState::HANDSHAKE_STEP_1},
       m_send_state{SendState::HANDSHAKE_STEP_2},
