@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <key.h>
+#include <sv2/messages.h>
 #include <sv2/noise.h>
 #include <threadsafety.h>
 #include <test/util/random.h>
@@ -70,6 +71,9 @@ struct Sv2BasicTestingSetup {
 private:
     fs::path m_tmp_root;
 };
+
+/** A valid SubmitSolution message for template id 2. */
+node::Sv2NetMsg TestSubmitSolutionMsg();
 
 /** Collects log lines while in scope. */
 class Sv2LogCapture

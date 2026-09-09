@@ -335,4 +335,23 @@ BOOST_AUTO_TEST_CASE(new_tip_bypasses_fee_timer_test)
     tester.m_mining_control->Shutdown();
 }
 
+// The network layer forwards SubmitSolution even when the client skipped
+// CoinbaseOutputConstraints, because dropping a solution could cost a block.
+// Make sure that's safe: without a template to match, the template provider
+// ignores the solution.
+BOOST_AUTO_TEST_CASE(submit_solution_without_template)
+{
+    Sv2LogCapture logs;
+    TPTester tester{};
+
+    tester.handshake();
+    tester.SendSetupConnection();
+    BOOST_REQUIRE_EQUAL(tester.GetBlockTemplateCount(), 0);
+
+    node::Sv2NetMsg solution{TestSubmitSolutionMsg()};
+    tester.receiveMessage(solution);
+    BOOST_REQUIRE(logs.WaitFor("Received SubmitSolution before SetupConnection and CoinbaseOutputConstraints"));
+    BOOST_REQUIRE(logs.WaitFor("Template with id=2 is no longer in cache"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

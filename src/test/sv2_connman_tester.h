@@ -27,6 +27,7 @@ private:
 
 public:
     std::unique_ptr<Sv2Connman> m_connman; //!< Sv2Connman being tested
+    std::atomic<size_t> m_submit_solution_count{0}; //!< Number of SubmitSolution messages forwarded to us
 
     ConnTester();
     ~ConnTester();
