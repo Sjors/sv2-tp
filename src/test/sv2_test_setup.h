@@ -7,11 +7,17 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <limits>
+#include <list>
 #include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include <key.h>
 #include <sv2/noise.h>
+#include <threadsafety.h>
 #include <test/util/random.h>
 #include <util/fs.h>
 #include <util/time.h>
@@ -63,6 +69,24 @@ struct Sv2BasicTestingSetup {
 
 private:
     fs::path m_tmp_root;
+};
+
+/** Collects log lines while in scope. */
+class Sv2LogCapture
+{
+public:
+    Sv2LogCapture();
+    ~Sv2LogCapture();
+
+    /** Wait until a captured line contains needle. */
+    bool WaitFor(std::string_view needle, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000});
+
+private:
+    //! Not a Mutex: the callback runs while the logger holds its own lock,
+    //! and LOCK() may itself log on contention.
+    StdMutex m_mutex;
+    std::vector<std::string> m_lines GUARDED_BY(m_mutex);
+    std::list<std::function<void(const std::string&)>>::iterator m_callback;
 };
 
 #endif // BITCOIN_TEST_SV2_TEST_SETUP_H

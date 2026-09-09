@@ -76,3 +76,31 @@ Sv2BasicTestingSetup::~Sv2BasicTestingSetup()
     }
     m_ecc.reset();
 }
+
+Sv2LogCapture::Sv2LogCapture()
+{
+    m_callback = LogInstance().PushBackCallback([this](const std::string& line) {
+        StdLockGuard lock(m_mutex);
+        m_lines.push_back(line);
+    });
+}
+
+Sv2LogCapture::~Sv2LogCapture()
+{
+    LogInstance().DeleteCallback(m_callback);
+}
+
+bool Sv2LogCapture::WaitFor(std::string_view needle, std::chrono::milliseconds timeout)
+{
+    const auto start = std::chrono::steady_clock::now();
+    for (;;) {
+        {
+            StdLockGuard lock(m_mutex);
+            for (const auto& line : m_lines) {
+                if (line.find(needle) != std::string::npos) return true;
+            }
+        }
+        if (std::chrono::steady_clock::now() - start > timeout) return false;
+        UninterruptibleSleep(std::chrono::milliseconds{5});
+    }
+}
