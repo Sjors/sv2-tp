@@ -78,4 +78,25 @@ BOOST_AUTO_TEST_CASE(submit_solution_forwarded)
     BOOST_REQUIRE(tester.IsConnected());
 }
 
+// Unlike SubmitSolution, RequestTransactionData is only forwarded after
+// SetupConnection and CoinbaseOutputConstraints. Otherwise disconnect.
+// The template provider tests cover the forwarded case.
+BOOST_AUTO_TEST_CASE(request_transaction_data_requires_coinbase_output_constraints)
+{
+    ConnTester tester{};
+
+    tester.handshake();
+    node::Sv2NetMsg setup{tester.SetupConnectionMsg()};
+    tester.RemoteToLocalMsg(setup);
+    BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), SV2_HEADER_ENCRYPTED_SIZE + 6 + Poly1305::TAGLEN);
+    BOOST_REQUIRE(tester.IsFullyConnected());
+
+    BOOST_TEST_MESSAGE("RequestTransactionData without CoinbaseOutputConstraints must disconnect");
+    std::vector<uint8_t> template_id_bytes{0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    node::Sv2NetMsg premature_request{node::Sv2MsgType::REQUEST_TRANSACTION_DATA, std::move(template_id_bytes)};
+    tester.RemoteToLocalMsg(premature_request);
+    BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), 0);
+    BOOST_REQUIRE(!tester.IsConnected());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

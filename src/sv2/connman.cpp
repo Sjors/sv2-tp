@@ -413,6 +413,14 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
     }
     case Sv2MsgType::REQUEST_TRANSACTION_DATA:
     {
+        {
+            LOCK(client.cs_status);
+            if (!client.m_setup_connection_confirmed || !client.m_coinbase_output_constraints_recv) {
+                client.m_disconnect_flag = true;
+                return;
+            }
+        }
+
         node::Sv2RequestTransactionDataMsg request_tx_data;
 
         try {
