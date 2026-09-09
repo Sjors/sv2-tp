@@ -4,6 +4,7 @@
 #include <test/sv2_handshake_test_util.h>
 #include <test/sv2_test_setup.h>
 #include <util/sock.h>
+#include <util/time.h>
 
 ConnTester::ConnTester()
 {
@@ -126,6 +127,16 @@ Sv2NetMsg ConnTester::SetupConnectionMsg()
     };
 
     return node::Sv2NetMsg{node::Sv2MsgType::SETUP_CONNECTION, std::move(bytes)};
+}
+
+bool ConnTester::WaitForCount(const std::atomic<size_t>& counter, size_t count)
+{
+    const auto start = std::chrono::steady_clock::now();
+    while (counter < count) {
+        if (std::chrono::steady_clock::now() - start > std::chrono::seconds{2}) return false;
+        UninterruptibleSleep(std::chrono::milliseconds{5});
+    }
+    return true;
 }
 
 void ConnTester::RequestTransactionData(Sv2Client& client, node::Sv2RequestTransactionDataMsg msg)
