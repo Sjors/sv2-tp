@@ -6,6 +6,7 @@
 #include <sv2/transport.h>
 #include <test/util/net.h>
 
+#include <atomic>
 #include <memory>
 
 /**
@@ -37,6 +38,8 @@ public:
     bool IsConnected();
     bool IsFullyConnected();
     Sv2NetMsg SetupConnectionMsg();
+    /** Wait until a message counter reaches count. */
+    bool WaitForCount(const std::atomic<size_t>& counter, size_t count);
 
     void RequestTransactionData(Sv2Client& client, node::Sv2RequestTransactionDataMsg msg) override;
     void SubmitSolution(node::Sv2SubmitSolutionMsg solution) override;
