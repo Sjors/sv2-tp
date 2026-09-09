@@ -6,12 +6,22 @@
 
 #include <chainparamsbase.h>
 #include <common/args.h>
+#include <init/common.h>
 #include <key.h>
+#include <logging.h>
 #include <util/chaintype.h>
+#include <util/result.h>
 #include <util/string.h>
 #include <util/time.h>
 #include <array>
+#include <functional>
+#include <stdexcept>
 #include <string>
+#include <vector>
+
+// Provided by main.cpp
+extern std::function<void(const std::string&)> G_TEST_LOG_FUN;
+extern std::function<std::vector<const char*>()> G_TEST_COMMAND_LINE_ARGUMENTS;
 
 Sv2BasicTestingSetup::Sv2BasicTestingSetup()
 {
@@ -31,8 +41,23 @@ Sv2BasicTestingSetup::Sv2BasicTestingSetup()
     // Set datadir arg so any code that writes under datadir uses the temp path.
     gArgs.ForceSetArg("-datadir", fs::PathToString(m_tmp_root));
 
-    // Keep logs in memory via G_TEST_LOG_FUN in main.cpp; avoid file logging noise.
-    gArgs.ForceSetArg("-debuglogfile", "0");
+    // Set up logging like sv2-tp does. Lines go to G_TEST_LOG_FUN, which only
+    // prints them when DEBUG_LOG_OUT is passed (see main.cpp). Logging options
+    // can be appended after `--`, e.g.:
+    // test_sv2 -t sv2_template_provider_tests -- -loglevel=sv2:debug DEBUG_LOG_OUT
+    init::AddLoggingArgs(gArgs);
+    std::vector<const char*> arguments{"dummy", "-printtoconsole=0", "-debuglogfile=0", "-logsourcelocations", "-logtimemicros", "-logthreadnames", "-debug", "-loglevel=trace"};
+    if (G_TEST_COMMAND_LINE_ARGUMENTS) {
+        for (const char* arg : G_TEST_COMMAND_LINE_ARGUMENTS()) arguments.push_back(arg);
+    }
+    std::string error;
+    if (!gArgs.ParseParameters(arguments.size(), arguments.data(), error)) throw std::runtime_error{error};
+    if (!gArgs.ReadConfigFiles(error, /*ignore_invalid_keys=*/true)) throw std::runtime_error{error};
+    init::SetLoggingOptions(gArgs);
+    if (const auto res{init::SetLoggingCategories(gArgs)}; !res) throw std::runtime_error{util::ErrorString(res).original};
+    if (const auto res{init::SetLoggingLevel(gArgs)}; !res) throw std::runtime_error{util::ErrorString(res).original};
+    if (G_TEST_LOG_FUN) LogInstance().PushBackCallback(G_TEST_LOG_FUN);
+    if (!init::StartLogging(gArgs)) throw std::runtime_error{"StartLogging failed"};
 
     // Initialize ECC context needed by key and crypto operations used in tests.
     m_ecc = std::make_unique<ECC_Context>();
@@ -40,6 +65,8 @@ Sv2BasicTestingSetup::Sv2BasicTestingSetup()
 
 Sv2BasicTestingSetup::~Sv2BasicTestingSetup()
 {
+    LogInstance().DisconnectTestLogger();
+    gArgs.ClearArgs();
     SetMockTime(std::chrono::seconds{0});
 
     try {
