@@ -147,4 +147,5 @@ void ConnTester::RequestTransactionData(Sv2Client& client, node::Sv2RequestTrans
 void ConnTester::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
 {
     BOOST_TEST_MESSAGE("Process SubmitSolution");
+    ++m_submit_solution_count;
 }

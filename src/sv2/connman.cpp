@@ -387,9 +387,14 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
     case Sv2MsgType::SUBMIT_SOLUTION: {
         {
             LOCK(client.cs_status);
-            if (!client.m_setup_connection_confirmed && !client.m_coinbase_output_constraints_recv) {
-                client.m_disconnect_flag = true;
-                return;
+            // A reconnecting client may still have a template from its previous
+            // connection. Even if it skips SetupConnection or
+            // CoinbaseOutputConstraints, a solution is potentially worth a block
+            // reward, so forward it. The template provider checks that the
+            // template exists.
+            if (!client.m_setup_connection_confirmed || !client.m_coinbase_output_constraints_recv) {
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Warning, "Received SubmitSolution before SetupConnection and CoinbaseOutputConstraints (setup_connection=%d, coinbase_output_constraints=%d) from client id=%zu\n",
+                              client.m_setup_connection_confirmed, client.m_coinbase_output_constraints_recv, client.m_id);
             }
         }
 
