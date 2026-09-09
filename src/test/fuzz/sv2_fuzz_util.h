@@ -51,7 +51,6 @@ inline void Sv2FuzzInitialize()
         } else if (want_sv2_debug || std::getenv("SV2_FUZZ_LOG_DEBUG")) {
             LogInstance().SetCategoryLogLevel({{BCLog::SV2, BCLog::Level::Debug}});
         }
-        LogInstance().StartLogging();
     }
 }
 
