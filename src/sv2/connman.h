@@ -118,9 +118,10 @@ private:
     const uint16_t m_protocol_version = 2;
 
     /**
-     * The currently supported optional features.
+     * Flags required by this Template Distribution Protocol server. The protocol
+     * currently does not define any.
      */
-    const uint16_t m_optional_features = 0;
+    const uint32_t m_required_flags{0};
 
     CKey m_static_key;
 

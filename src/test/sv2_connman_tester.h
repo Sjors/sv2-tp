@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <memory>
+#include <utility>
 
 /**
   * A class for testing the Sv2Connman. Each ConnTester encapsulates a
@@ -37,6 +38,7 @@ public:
     size_t LocalToRemoteBytes();
     /** Retrieve the message completed by LocalToRemoteBytes(). */
     Sv2NetMsg GetReceivedMessage();
+    std::pair<Sv2NetMsg, size_t> LocalToRemoteMsg();
     void handshake();
     void RemoteToLocalMsg(Sv2NetMsg& msg);
     bool IsConnected();

@@ -296,10 +296,9 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
         }
 
         LOCK(client.cs_send);
-
         // Disconnect a client that connects on the wrong subprotocol.
         if (setup_conn.m_protocol != node::TEMPLATE_DISTRIBUTION_PROTOCOL) {
-            node::Sv2SetupConnectionErrorMsg setup_conn_err{setup_conn.m_flags, std::string{"unsupported-protocol"}};
+            node::Sv2SetupConnectionErrorMsg setup_conn_err{setup_conn.m_required_flags, std::string{"unsupported-protocol"}};
 
             LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x02 SetupConnectionError to client id=%zu\n",
                           client.m_id);
@@ -312,7 +311,7 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
 
         // Disconnect a client if they are not running a compatible protocol version.
         if ((m_protocol_version < setup_conn.m_min_version) || (m_protocol_version > setup_conn.m_max_version)) {
-            node::Sv2SetupConnectionErrorMsg setup_conn_err{setup_conn.m_flags, std::string{"protocol-version-mismatch"}};
+            node::Sv2SetupConnectionErrorMsg setup_conn_err{setup_conn.m_required_flags, std::string{"protocol-version-mismatch"}};
             LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x02 SetupConnection.Error to client id=%zu\n",
                           client.m_id);
             client.m_send_messages.emplace_back(setup_conn_err);
@@ -327,7 +326,7 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
 
         LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x01 SetupConnection.Success to client id=%zu\n",
                       client.m_id);
-        node::Sv2SetupConnectionSuccessMsg setup_success{m_protocol_version, m_optional_features};
+        node::Sv2SetupConnectionSuccessMsg setup_success{m_protocol_version, m_required_flags};
         client.m_send_messages.emplace_back(setup_success);
 
         LOCK(client.cs_status);
