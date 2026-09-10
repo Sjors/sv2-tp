@@ -118,6 +118,12 @@ private:
     const uint16_t m_protocol_version = 2;
 
     /**
+     * Flags accepted from Template Distribution Protocol clients. The protocol
+     * currently does not define any.
+     */
+    const uint32_t m_supported_flags{0};
+
+    /**
      * Flags required by this Template Distribution Protocol server. The protocol
      * currently does not define any.
      */

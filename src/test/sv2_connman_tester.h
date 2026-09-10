@@ -38,7 +38,10 @@ public:
     void RemoteToLocalMsg(Sv2NetMsg& msg);
     bool IsConnected();
     bool IsFullyConnected();
-    Sv2NetMsg SetupConnectionMsg();
+    Sv2NetMsg SetupConnectionMsg(uint8_t protocol = node::TEMPLATE_DISTRIBUTION_PROTOCOL,
+                                 uint16_t min_version = 2,
+                                 uint16_t max_version = 2,
+                                 uint32_t flags = 0);
 
     void RequestTransactionData(Sv2Client& client, node::Sv2RequestTransactionDataMsg msg) override;
     void SubmitSolution(node::Sv2SubmitSolutionMsg solution) override;
