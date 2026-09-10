@@ -296,9 +296,11 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
         }
 
         LOCK(client.cs_send);
+        const uint32_t unsupported_flags{setup_conn.m_required_flags & ~m_supported_flags};
+
         // Disconnect a client that connects on the wrong subprotocol.
         if (setup_conn.m_protocol != node::TEMPLATE_DISTRIBUTION_PROTOCOL) {
-            node::Sv2SetupConnectionErrorMsg setup_conn_err{setup_conn.m_required_flags, std::string{"unsupported-protocol"}};
+            node::Sv2SetupConnectionErrorMsg setup_conn_err{unsupported_flags, std::string{"unsupported-protocol"}};
 
             LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x02 SetupConnectionError to client id=%zu\n",
                           client.m_id);
@@ -311,13 +313,27 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
 
         // Disconnect a client if they are not running a compatible protocol version.
         if ((m_protocol_version < setup_conn.m_min_version) || (m_protocol_version > setup_conn.m_max_version)) {
-            node::Sv2SetupConnectionErrorMsg setup_conn_err{setup_conn.m_required_flags, std::string{"protocol-version-mismatch"}};
+            node::Sv2SetupConnectionErrorMsg setup_conn_err{unsupported_flags, std::string{"protocol-version-mismatch"}};
             LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x02 SetupConnection.Error to client id=%zu\n",
                           client.m_id);
             client.m_send_messages.emplace_back(setup_conn_err);
 
             LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Received a connection from client id=%zu with incompatible protocol_versions: min_version: %d, max_version: %d\n",
                           client.m_id, setup_conn.m_min_version, setup_conn.m_max_version);
+
+            LOCK(client.cs_status);
+            client.m_disconnect_flag = true;
+            return;
+        }
+
+        if (unsupported_flags != 0) {
+            node::Sv2SetupConnectionErrorMsg setup_conn_err{unsupported_flags, std::string{"unsupported-feature-flags"}};
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x02 SetupConnection.Error to client id=%zu\n",
+                          client.m_id);
+            client.m_send_messages.emplace_back(setup_conn_err);
+
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Received a connection from client id=%zu with unsupported feature flags: 0x%x\n",
+                          client.m_id, unsupported_flags);
 
             LOCK(client.cs_status);
             client.m_disconnect_flag = true;
