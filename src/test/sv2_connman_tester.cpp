@@ -25,7 +25,7 @@ ConnTester::ConnTester()
     uint32_t valid_to{0};
     Sv2Certificate certificate = MakeSkewTolerantCertificate(static_key, authority_key, now_secs, valid_from, valid_to);
 
-    m_connman = std::make_unique<Sv2Connman>(TP_SUBPROTOCOL, static_key, m_connman_authority_pubkey, certificate);
+    m_connman = std::make_unique<Sv2Connman>(static_key, m_connman_authority_pubkey, certificate);
 
     BOOST_REQUIRE(m_connman->Start(this, "127.0.0.1", 18447));
 }
