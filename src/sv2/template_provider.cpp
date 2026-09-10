@@ -91,7 +91,7 @@ Sv2TemplateProvider::Sv2TemplateProvider(interfaces::Mining& mining) : m_mining{
     uint16_t version = 0;
     Sv2SignatureNoiseMessage certificate = Sv2SignatureNoiseMessage(version, valid_from, valid_to, XOnlyPubKey(static_key.GetPubKey()), authority_key);
 
-    m_connman = std::make_unique<Sv2Connman>(TP_SUBPROTOCOL, static_key, m_authority_pubkey, certificate);
+    m_connman = std::make_unique<Sv2Connman>(static_key, m_authority_pubkey, certificate);
 }
 
 fs::path Sv2TemplateProvider::GetStaticKeyFile()

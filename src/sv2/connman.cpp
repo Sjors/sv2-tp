@@ -51,7 +51,7 @@ bool Sv2Connman::Bind(std::string host, uint16_t port)
         return false;
     }
 
-    LogPrintLevel(BCLog::SV2, BCLog::Level::Info, "%s listening on %s:%d\n", SV2_PROTOCOL_NAMES.at(m_subprotocol), host, port);
+    LogPrintLevel(BCLog::SV2, BCLog::Level::Info, "Template Provider listening on %s:%d\n", host, port);
 
     return true;
 }
@@ -298,7 +298,7 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
         LOCK(client.cs_send);
 
         // Disconnect a client that connects on the wrong subprotocol.
-        if (setup_conn.m_protocol != m_subprotocol) {
+        if (setup_conn.m_protocol != node::TEMPLATE_DISTRIBUTION_PROTOCOL) {
             node::Sv2SetupConnectionErrorMsg setup_conn_err{setup_conn.m_flags, std::string{"unsupported-protocol"}};
 
             LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Send 0x02 SetupConnectionError to client id=%zu\n",

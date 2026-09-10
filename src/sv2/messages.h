@@ -24,6 +24,9 @@ class CTxOut;
 class ArithToUint256;
 
 namespace node {
+/** Template Distribution Protocol value used by SetupConnection. */
+static constexpr uint8_t TEMPLATE_DISTRIBUTION_PROTOCOL{0x02};
+
 /**
  * A type used as the message length field in stratum v2 messages.
  */
