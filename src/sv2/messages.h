@@ -85,10 +85,10 @@ struct Sv2SetupConnectionMsg
     uint16_t m_max_version;
 
     /**
-     * Flags indicating optional protocol features the client supports. Each protocol
-     * from the protocol field has its own values/flags.
+     * Flags indicating optional protocol features the client requires for this
+     * connection. Each protocol has its own values/flags.
      */
-    uint32_t m_flags;
+    uint32_t m_required_flags;
 
     /**
      * ASCII text indicating the hostname or IP address.
@@ -126,7 +126,7 @@ struct Sv2SetupConnectionMsg
         s >> m_protocol
           >> m_min_version
           >> m_max_version
-          >> m_flags
+          >> m_required_flags
           >> m_endpoint_host
           >> m_endpoint_port
           >> m_vendor
@@ -183,8 +183,8 @@ struct Sv2CoinbaseOutputConstraintsMsg
 
 /**
  * Response to the SetupConnection message if the server accepts the connection.
- * The client is required to verify the set of feature flags that the server
- * supports and act accordingly.
+ * The client is required to verify the set of feature flags set by the server
+ * and act accordingly.
  */
 struct Sv2SetupConnectionSuccessMsg
 {
@@ -200,18 +200,18 @@ struct Sv2SetupConnectionSuccessMsg
     uint16_t m_used_version;
 
     /**
-     * Flags indicating optional protocol features the server supports. Each protocol
-     * from protocol field has its own values/flags.
+     * Flags indicating optional protocol features the server requires for this
+     * connection. Each protocol has its own values/flags.
      */
-    uint32_t m_flags;
+    uint32_t m_required_flags;
 
-    explicit Sv2SetupConnectionSuccessMsg(uint16_t used_version, uint32_t flags) : m_used_version{used_version}, m_flags{flags} {};
+    explicit Sv2SetupConnectionSuccessMsg(uint16_t used_version, uint32_t required_flags) : m_used_version{used_version}, m_required_flags{required_flags} {};
 
     template <typename Stream>
     void Serialize(Stream& s) const
     {
         s << m_used_version
-          << m_flags;
+          << m_required_flags;
     }
 };
 
@@ -222,10 +222,7 @@ struct Sv2SetupConnectionErrorMsg
 {
     static constexpr auto m_msg_type = Sv2MsgType::SETUP_CONNECTION_ERROR;
 
-    /**
-     * Flags indicating optional protocol features the server supports. Each protocol
-     * from protocol field has its own values/flags.
-     */
+    /** Flags indicating features causing an error. */
     uint32_t m_flags;
 
     /**

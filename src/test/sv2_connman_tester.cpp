@@ -53,6 +53,16 @@ size_t ConnTester::LocalToRemoteBytes()
         std::chrono::milliseconds{1000}, "connman_local_to_remote", /*allow_zero_first=*/true);
 }
 
+std::pair<Sv2NetMsg, size_t> ConnTester::LocalToRemoteMsg()
+{
+    const size_t bytes{LocalToRemoteBytes()};
+    BOOST_REQUIRE(m_remote_transport->ReceivedMessageComplete());
+    bool reject_message{false};
+    CNetMessage net_msg{m_remote_transport->GetReceivedMessage(std::chrono::microseconds{0}, reject_message)};
+    BOOST_REQUIRE(!reject_message);
+    return {Sv2NetMsg{std::move(net_msg)}, bytes};
+}
+
 /* Create a new client and perform handshake */
 void ConnTester::handshake()
 {
@@ -113,7 +123,7 @@ Sv2NetMsg ConnTester::SetupConnectionMsg()
         0x02,                                                 // protocol
         0x02, 0x00,                                           // min_version
         0x02, 0x00,                                           // max_version
-        0x01, 0x00, 0x00, 0x00,                               // flags
+        0x00, 0x00, 0x00, 0x00,                               // flags
         0x07, 0x30, 0x2e, 0x30, 0x2e, 0x30, 0x2e, 0x30,       // endpoint_host
         0x61, 0x21,                                           // endpoint_port
         0x07, 0x42, 0x69, 0x74, 0x6d, 0x61, 0x69, 0x6e,       // vendor

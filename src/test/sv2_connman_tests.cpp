@@ -35,7 +35,15 @@ BOOST_AUTO_TEST_CASE(client_tests)
     node::Sv2NetMsg setup{tester.SetupConnectionMsg()};
     tester.RemoteToLocalMsg(setup);
     // SetupConnection.Success is 6 bytes
-    BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), SV2_HEADER_ENCRYPTED_SIZE + 6 + Poly1305::TAGLEN);
+    auto [response, response_bytes]{tester.LocalToRemoteMsg()};
+    BOOST_REQUIRE_EQUAL(response_bytes, SV2_HEADER_ENCRYPTED_SIZE + 6 + Poly1305::TAGLEN);
+    BOOST_REQUIRE(response.m_msg_type == node::Sv2MsgType::SETUP_CONNECTION_SUCCESS);
+    DataStream response_stream{response.m_msg};
+    uint16_t used_version;
+    uint32_t required_flags;
+    response_stream >> used_version >> required_flags;
+    BOOST_REQUIRE_EQUAL(used_version, 2);
+    BOOST_REQUIRE_EQUAL(required_flags, 0);
     BOOST_REQUIRE(tester.IsFullyConnected());
 
     std::vector<uint8_t> coinbase_output_max_additional_size_bytes{
