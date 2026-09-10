@@ -281,7 +281,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 std::shared_ptr client = m_connman->GetClientById(client_id);
                 if (!client) return false;
 
-                // https://stratumprotocol.org/specification/07-Template-Distribution-Protocol#71-coinbaseoutputconstraints-client-server
+                // https://stratumprotocol.org/specification/07-Template-Distribution-Protocol#72-coinbaseoutputconstraints-client-server
                 // Weight units reserved for block header, transaction count,
                 // and various fixed and variable coinbase fields.
                 const size_t block_reserved_floor{1168};
