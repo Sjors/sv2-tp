@@ -9,11 +9,20 @@ on:
 
 jobs:
   sri-integration-test:
-    name: 'SRI integration test'
+    name: 'SRI integration test (Bitcoin Core ${{ matrix.name }})'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Set version for a downloaded release, or ref for a source build.
+          - name: v31.1
+            version: '31.1'
+            ref: ''
     env:
-      BITCOIN_CORE_VERSION: '31.0'
+      BITCOIN_CORE_VERSION: ${{ matrix.version }}
+      BITCOIN_CORE_REF: ${{ matrix.ref }}
       BITCOIN_CORE_PLATFORM: x86_64-linux-gnu
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: 'true'
@@ -34,8 +43,10 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ccache
-          key: ccache-${{ runner.os }}-${{ github.sha }}
-          restore-keys: ccache-${{ runner.os }}-
+          key: ccache-${{ runner.os }}-sri-${{ matrix.name }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-sri-${{ matrix.name }}-
+            ccache-${{ runner.os }}-
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
