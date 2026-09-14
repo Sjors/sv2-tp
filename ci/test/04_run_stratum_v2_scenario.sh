@@ -367,6 +367,15 @@ run_phase()
 
     grep -q "Connected to bitcoin-node via IPC" "${LOG_DIR}/sv2-tp.log"
 
+    # Exercise legacy interface detection over a real v31 IPC connection.
+    # Source builds may have newer interfaces, so only assert this for v31 releases.
+    if [[ -z "${BITCOIN_CORE_REF}" && "${BITCOIN_CORE_VERSION}" == 31.* ]]; then
+        if ! grep -Fq 'The IPC error above is expected when connecting to Bitcoin Core v31' "${LOG_DIR}/sv2-tp.log"; then
+            echo "sv2-tp did not select the legacy mining interface" >&2
+            return 1
+        fi
+    fi
+
     echo "Verifying BIP54 compliance of SRI-mined blocks (heights 18..${count})"
     bip54_passed=0
     for ((h = 18; h <= count; ++h)); do

@@ -20,6 +20,13 @@ jobs:
           - name: v31.1
             version: '31.1'
             ref: ''
+          # Once binaries are available, set version to '32.0rc1' and clear ref.
+          - name: v32.0rc1
+            version: ''
+            ref: v32.0rc1
+          - name: master
+            version: ''
+            ref: master
     env:
       BITCOIN_CORE_VERSION: ${{ matrix.version }}
       BITCOIN_CORE_REF: ${{ matrix.ref }}
