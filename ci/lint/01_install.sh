@@ -40,7 +40,7 @@ python3 --version
 
 ${CI_RETRY_EXE} pip3 install \
   codespell==2.4.1 \
-  lief==0.17.5 \
+  lief==0.17.6 \
   mypy==1.4.1 \
   ruff==0.5.5 \
   vulture==2.6

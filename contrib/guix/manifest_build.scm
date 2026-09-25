@@ -323,11 +323,11 @@ chain for " target " development."))
         cmake-minimal
         gnu-make
         ;; Scripting
-        python-minimal ;; (3.11)
+        python-minimal ;; 3.12
         ;; Git
         git-minimal
         ;; Tests
-        python-lief-no-riscv64-failing-tests)
+        python-lief-no-riscv64-failing-tests) ;; 0.17.6
   (let ((target (getenv "HOST")))
     (cond ((string-suffix? "-mingw32" target)
            (list (make-mingw-pthreads-cross-toolchain target)
