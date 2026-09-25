@@ -49,9 +49,12 @@ build/bin/sv2-tp -debug=sv2 -loglevel=sv2:trace
 
 (for the installed version you don't need `build/bin/`)
 
-Now connect on of the other Stratum v2 roles to the Template Provider, such
-as the Job Declarator Client or (e.g. for solo mining) the Pool role. You'll
-need to provide the [Auhority Key]() which `sv2-tp` prints in the log.
+Now connect one of the other Stratum v2 roles to the Template Provider, such
+as the Job Declarator Client or (e.g. for solo mining) the Pool role. Configure
+that client with the authority public key printed in the
+`Template Provider authority key: ...` log message. See
+[keys and certificates](doc/stratum-v2.md#keys-and-certificates) for details
+on how `sv2-tp` generates and stores its keys and its current limitations.
 
 See https://github.com/stratum-mining/stratum.
 
