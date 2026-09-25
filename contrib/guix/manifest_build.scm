@@ -285,6 +285,22 @@ chain for " target " development."))
                    (("^install-others =.*$")
                     (string-append "install-others = " out "/etc/rpc\n")))))))))))))
 
+;; python-lief transitively pulls in packages whose tests fail when
+;; building natively on riscv64.
+(define (package-without-tests p)
+  (package
+    (inherit p)
+    (arguments
+     (substitute-keyword-arguments (package-arguments p)
+       ((#:tests? _ #t) #f)))))
+
+(define python-lief-no-riscv64-failing-tests
+  ((package-input-rewriting/spec
+    `(("python-psutil" . ,package-without-tests)
+      ("python-pytest-xprocess" . ,package-without-tests)
+      ("python-sh" . ,package-without-tests)))
+   python-lief))
+
 (packages->manifest
  (append
   (list ;; The Basics
@@ -311,7 +327,7 @@ chain for " target " development."))
         ;; Git
         git-minimal
         ;; Tests
-        python-lief)
+        python-lief-no-riscv64-failing-tests)
   (let ((target (getenv "HOST")))
     (cond ((string-suffix? "-mingw32" target)
            (list (make-mingw-pthreads-cross-toolchain target)
