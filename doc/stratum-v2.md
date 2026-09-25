@@ -113,6 +113,44 @@ unix socket instead and rely on the user to install a separate tool to convert
 to this protocol. This approach is implemented in https://github.com/Sjors/bitcoin/pull/48,
 but could also be provided as part of SRI.
 
+#### Keys and certificates
+
+For the protocol definitions, see the spec sections on
+[server authentication](https://stratumprotocol.org/specification/04-protocol-security/#453-server-authentication)
+and [key management and rotation](https://stratumprotocol.org/specification/04-protocol-security/#48-key-management-and-rotation).
+
+At startup, `sv2-tp` loads two private keys from its network-specific data
+directory: the Noise static key from `sv2_static_key`, and the authority key
+from `sv2_authority_key`. If a key is missing, cannot be read, or is invalid,
+it generates a new random key and attempts to save it in the corresponding
+file. Successfully saved keys are reused on subsequent starts.
+
+Each startup creates a certificate for the static public key, signed by the
+authority private key. The certificate is kept in memory and used for every
+incoming Noise handshake during that run. Its validity starts one hour before
+startup to allow for clock differences and ends at Unix timestamp 4294967295
+(in 2106). A fresh ephemeral key is generated for each handshake.
+
+Configure downstream clients with the Base58Check-encoded
+[authority public key](https://stratumprotocol.org/specification/04-protocol-security/#47-url-scheme-and-authority-key)
+printed in the `Template Provider authority key: ...` startup log message.
+The separate `Static key: ...` message contains the public key authenticated
+by the certificate; clients receive that key during the handshake. Neither
+private-key file is needed by clients.
+
+If `sv2_authority_key` is lost or unreadable, startup generates a replacement
+and clients must be configured with the new authority public key. Replacing
+only `sv2_static_key` does not require client reconfiguration, because the new
+static key's certificate is signed by the same authority key.
+
+The current implementation has these limitations:
+
+- Externally signed certificates cannot be loaded. The `-sv2cert` option
+  mentioned in a source comment is not implemented, so the authority private
+  key must be available on the Template Provider when it starts.
+- Certificate validity is hardcoded; there is no configurable lifetime or
+  renewal while running.
+
 ### Mempool monitoring
 
 The current design uses `waitNext()` to monitor for fee increases and new tips.
