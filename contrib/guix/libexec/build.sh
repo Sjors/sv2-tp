@@ -95,6 +95,8 @@ esac
 # Depends Building #
 ####################
 
+BASE_CACHE="${BASE_CACHE:-$PWD/depends/built}/GUIX/BUILD"
+
 # Build the depends tree
 make -C depends --jobs="$JOBS" HOST="$HOST" \
                                    ${V:+V=1} \
