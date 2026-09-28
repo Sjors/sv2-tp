@@ -50,7 +50,7 @@ Sv2TemplateProvider::Sv2TemplateProvider(interfaces::Mining& mining) : m_mining{
     }
     LogPrintLevel(BCLog::SV2, BCLog::Level::Info, "Static key: %s\n", HexStr(static_key.GetPubKey()));
 
-   // Generate self signed certificate using (cached) authority key
+    // Generate a certificate for the static key, signed by the authority key.
     // TODO: skip loading authoritity key if -sv2cert is used
 
     // Load authority key if cached
