@@ -12,6 +12,16 @@ function(add_libmultiprocess subdir)
   target_link_libraries(multiprocess PUBLIC $<BUILD_INTERFACE:core_interface>)
   target_link_libraries(mputil PUBLIC $<BUILD_INTERFACE:core_interface>)
   target_link_libraries(mpgen PUBLIC $<BUILD_INTERFACE:core_interface>)
+  # libmultiprocess#339 uses C++23 lambda attribute syntax in a public header.
+  # Keep this warning visible without failing C++20 builds with WERROR enabled.
+  try_append_cxx_flags("-Wno-error=c++23-lambda-attributes" VAR multiprocess_cxx_flags SKIP_LINK)
+  if(NOT multiprocess_cxx_flags)
+    # Older Clang versions report this under the general C++23 warning group.
+    try_append_cxx_flags("-Wno-error=c++23-extensions" VAR multiprocess_cxx_flags SKIP_LINK)
+  endif()
+  if(multiprocess_cxx_flags)
+    target_compile_options(multiprocess PUBLIC ${multiprocess_cxx_flags})
+  endif()
   # Mark capproto options as advanced to hide by default from cmake UI
   mark_as_advanced(CapnProto_DIR)
   mark_as_advanced(CapnProto_capnpc_IMPORTED_LOCATION)
