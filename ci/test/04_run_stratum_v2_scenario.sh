@@ -48,13 +48,6 @@ readonly DOWNLOADS_DIR="${SCENARIO_ROOT}/downloads"
 readonly BITCOIN_CORE_SOURCE_DIR="${SCENARIO_ROOT}/bitcoin-core-source"
 readonly BITCOIN_CORE_BUILD_DIR="${SCENARIO_ROOT}/bitcoin-core-build"
 readonly SV2_APPS_DIR="${SCENARIO_ROOT}/sv2-apps"
-readonly DATADIR="${RUNTIME_ROOT}/datadir"
-readonly LOG_DIR="${RUNTIME_ROOT}/logs"
-readonly POOL_CONFIG="${RUNTIME_ROOT}/pool-regtest.toml"
-readonly BITCOIN_PID_FILE="${RUNTIME_ROOT}/bitcoin-node.pid"
-readonly BITCOIN_CONFIG_SOURCE="${REPO_ROOT}/ci/test/stratum_v2_bitcoin.conf"
-readonly SV2_TP_CONFIG_SOURCE="${REPO_ROOT}/ci/test/stratum_v2_sv2-tp.conf"
-readonly POOL_CONFIG_TEMPLATE="${REPO_ROOT}/ci/test/stratum_v2_pool-regtest.toml.in"
 
 if [[ -n "${BITCOIN_CORE_REF}" ]]; then
     readonly BITCOIN_BINDIR="${BITCOIN_CORE_BUILD_DIR}/bin"
@@ -67,163 +60,6 @@ readonly SV2_TP="${REPO_ROOT}/build/bin/sv2-tp"
 readonly POOL_SV2="${SV2_APPS_DIR}/target/release/pool_sv2"
 readonly MINING_DEVICE_MANIFEST="${SV2_APPS_DIR}/integration-tests/Cargo.toml"
 readonly MINING_DEVICE="${SV2_APPS_DIR}/target/release/mining_device"
-readonly -a BITCOIN_ARGS=("-datadir=${DATADIR}")
-
-SV2_TP_PID=""
-POOL_PID=""
-MINER_PID=""
-BITCOIN_PID=""
-
-stop_pid()
-{
-    local pid="${1:-}"
-    if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-        kill "${pid}" 2>/dev/null || true
-        wait "${pid}" 2>/dev/null || true
-    fi
-}
-
-stop_bitcoin_core()
-{
-    local i
-
-    if [[ -z "${BITCOIN_PID}" ]]; then
-        return
-    fi
-
-    if kill -0 "${BITCOIN_PID}" 2>/dev/null; then
-        "${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" stop >/dev/null 2>&1 || true
-    fi
-
-    for ((i = 0; i < 60; ++i)); do
-        if ! kill -0 "${BITCOIN_PID}" 2>/dev/null; then
-            BITCOIN_PID=""
-            rm -f "${BITCOIN_PID_FILE}"
-            return
-        fi
-        sleep 1
-    done
-
-    echo "Bitcoin Core did not stop within 60 seconds" >&2
-    return 1
-}
-
-wait_for_log()
-{
-    local pid="$1"
-    local log="$2"
-    local pattern="$3"
-    local timeout="$4"
-    local description="$5"
-    local i
-
-    for ((i = 0; i < timeout; ++i)); do
-        if grep -q "${pattern}" "${log}" 2>/dev/null; then
-            return 0
-        fi
-        if ! kill -0 "${pid}" 2>/dev/null; then
-            echo "${description} exited before becoming ready" >&2
-            return 1
-        fi
-        sleep 1
-    done
-
-    echo "Timed out waiting for ${description}" >&2
-    return 1
-}
-
-# Wait up to the given timeout for a process to exit, then kill it.
-# Return the process exit status.
-wait_for_exit_or_kill()
-{
-    local pid="$1"
-    local timeout="$2"
-    local status=0
-
-    # SIGKILL ensures a timeout cannot be mistaken for a clean exit.
-    (
-        sleep "${timeout}"
-        kill -KILL "${pid}" 2>/dev/null || true
-    ) &
-    local watchdog_pid="$!"
-
-    wait "${pid}" || status="$?"
-    kill "${watchdog_pid}" 2>/dev/null || true
-    wait "${watchdog_pid}" 2>/dev/null || true
-
-    return "${status}"
-}
-
-show_logs()
-{
-    (
-        set +e
-        for log in \
-            "${DATADIR}/regtest/debug.log" \
-            "${DATADIR}/regtest/sv2-debug.log" \
-            "${LOG_DIR}/sv2-tp.log" \
-            "${LOG_DIR}/pool.log" \
-            "${LOG_DIR}/mining-device.log"; do
-            if [[ -f "${log}" ]]; then
-                echo "===== tail -n 200 ${log} ====="
-                tail -n 200 "${log}" || true
-            fi
-        done
-    )
-}
-
-cleanup()
-{
-    stop_pid "${MINER_PID}"
-    MINER_PID=""
-    stop_pid "${POOL_PID}"
-    POOL_PID=""
-    stop_pid "${SV2_TP_PID}"
-    SV2_TP_PID=""
-
-    stop_bitcoin_core
-}
-
-# Verify a single block's coinbase satisfies BIP54 (Consensus Cleanup):
-# - nLockTime == height - 1
-# - vin[0].sequence != 0xffffffff
-check_bip54_coinbase()
-{
-    local height="$1"
-    local block_hash coinbase_txid tx_json locktime sequence expected_locktime
-
-    block_hash="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" getblockhash "${height}")"
-    coinbase_txid="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" getblock "${block_hash}" 1 \
-        | python3 -c 'import json,sys; print(json.load(sys.stdin)["tx"][0])')"
-    tx_json="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" getrawtransaction \
-        "${coinbase_txid}" true "${block_hash}")"
-    read -r locktime sequence < <(printf '%s' "${tx_json}" | python3 -c '
-import json, sys
-tx = json.load(sys.stdin)
-print(tx["locktime"], tx["vin"][0]["sequence"])
-')
-
-    expected_locktime=$((height - 1))
-    if (( locktime != expected_locktime )); then
-        echo "BIP54 violation: block ${height} coinbase nLockTime=${locktime}, expected ${expected_locktime}" >&2
-        return 1
-    fi
-    if (( sequence == 4294967295 )); then
-        echo "BIP54 violation: block ${height} coinbase nSequence=0xffffffff" >&2
-        return 1
-    fi
-    echo "Block ${height} coinbase passes BIP54: nLockTime=${locktime} nSequence=${sequence}"
-}
-
-prepare_runtime_state()
-{
-    mkdir -p "${RUNTIME_ROOT}"
-    rm -rf "${DATADIR}" "${LOG_DIR}"
-    rm -f "${POOL_CONFIG}" "${BITCOIN_PID_FILE}"
-    mkdir -p "${DATADIR}" "${LOG_DIR}"
-    install -m 0644 "${BITCOIN_CONFIG_SOURCE}" "${DATADIR}/bitcoin.conf"
-    install -m 0644 "${SV2_TP_CONFIG_SOURCE}" "${DATADIR}/sv2-tp.conf"
-}
 
 download_bitcoin_core()
 {
@@ -336,186 +172,29 @@ build_sv2_apps_phase()
     build_mining_device
 }
 
-assert_executables()
+run_scenario()
 {
-    local missing=0
-    local path
-    for path in "$@"; do
-        if [[ ! -x "${path}" ]]; then
-            echo "Missing executable for run mode: ${path}" >&2
-            missing=1
-        fi
-    done
-    if (( missing != 0 )); then
-        echo "Run mode requires a prior build step" >&2
-        exit 1
+    local scenario="$1"
+    local bitcoin_node="${BITCOIN_BINDIR}/bitcoin-node"
+    if [[ ! -x "${bitcoin_node}" ]]; then
+        bitcoin_node="${BITCOIN_BINDIR}/../libexec/bitcoin-node"
     fi
-}
-
-start_bitcoin_core()
-{
-    echo "Starting Bitcoin Core"
-    "${BITCOIN}" -m node "${BITCOIN_ARGS[@]}" -pid="${BITCOIN_PID_FILE}" -daemonwait
-    if [[ ! -f "${BITCOIN_PID_FILE}" ]]; then
-        echo "Bitcoin Core did not create its PID file" >&2
-        return 1
-    fi
-    BITCOIN_PID="$(<"${BITCOIN_PID_FILE}")"
-    if [[ ! "${BITCOIN_PID}" =~ ^[0-9]+$ ]] || ! kill -0 "${BITCOIN_PID}" 2>/dev/null; then
-        echo "Bitcoin Core PID file does not identify a running process" >&2
-        BITCOIN_PID=""
-        return 1
-    fi
-    "${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" -rpcwait getblockcount >/dev/null
-}
-
-start_sv2_tp()
-{
-    echo "Starting sv2-tp"
-    "${SV2_TP}" -datadir="${DATADIR}" > "${LOG_DIR}/sv2-tp.log" 2>&1 &
-    SV2_TP_PID="$!"
-
-    wait_for_log "${SV2_TP_PID}" "${LOG_DIR}/sv2-tp.log" \
-        "Connected to bitcoin-node via IPC" 60 "sv2-tp IPC connection"
-}
-
-prepare_mining_state()
-{
-    local count addr reward_addr
-
-    echo "Preparing regtest wallet"
-    "${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" createwallet miner >/dev/null
-    count="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" getblockcount)"
-    if (( count < 17 )); then
-        echo "Mining regtest blocks up to height 17"
-        addr="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" -rpcwallet=miner getnewaddress)"
-        "${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" -rpcwallet=miner generatetoaddress \
-            "$((17 - count))" "${addr}" >/dev/null
-    fi
-
-    reward_addr="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" -rpcwallet=miner getnewaddress)"
-    sed "s/REPLACE_WITH_REGTEST_ADDRESS/${reward_addr}/" "${POOL_CONFIG_TEMPLATE}" > "${POOL_CONFIG}"
-}
-
-start_pool()
-{
-    echo "Starting pool_sv2"
-    RUST_LOG=debug "${POOL_SV2}" -c "${POOL_CONFIG}" > "${LOG_DIR}/pool.log" 2>&1 &
-    POOL_PID="$!"
-
-    sleep 5
-}
-
-start_mining_device()
-{
-    echo "Starting mining_device"
-    RUST_LOG=debug "${MINING_DEVICE}" --address-pool 127.0.0.1:33333 \
-        --nominal-hashrate-multiplier 0.01 --cores 1 \
-        > "${LOG_DIR}/mining-device.log" 2>&1 &
-    MINER_PID="$!"
-}
-
-run_mining()
-{
-    local count bip54_passed h i
-
-    echo "Preparing end-to-end mining scenario"
-    prepare_runtime_state
-    assert_executables "${BITCOIN}" "${BITCOIN_CLI}" "${SV2_TP}" "${POOL_SV2}" "${MINING_DEVICE}"
-
-    start_bitcoin_core
-    prepare_mining_state
-    start_sv2_tp
-    start_pool
-    start_mining_device
-
-    echo "Waiting for a mined block"
-    for ((i = 0; i < 180; ++i)); do
-        count="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" getblockcount)"
-        if (( count > 17 )); then
-            break
-        fi
-        sleep 1
-    done
-
-    count="$("${BITCOIN_CLI}" "${BITCOIN_ARGS[@]}" getblockcount)"
-    if (( count <= 17 )); then
-        echo "SRI integration test did not mine a block; regtest height stayed at ${count}" >&2
-        exit 1
-    fi
-
-    # Freeze the mined block range and allow delayed saves to finish.
-    stop_pid "${MINER_PID}"
-    MINER_PID=""
-    sleep 2
-
-    grep -q "Connected to bitcoin-node via IPC" "${LOG_DIR}/sv2-tp.log"
-
-    # Exercise legacy interface detection over a real v31 IPC connection.
-    # Source builds may have newer interfaces, so only assert this for v31 releases.
+    local -a scenario_args=(
+        --runtime-root "${RUNTIME_ROOT}"
+        --bitcoin-node "${bitcoin_node}" --bitcoin-cli "${BITCOIN_CLI}"
+        --sv2-tp "${SV2_TP}" --pool "${POOL_SV2}" --miner "${MINING_DEVICE}"
+    )
     if [[ -z "${BITCOIN_CORE_REF}" && "${BITCOIN_CORE_VERSION}" == 31.* ]]; then
-        if ! grep -Fq 'The IPC error above is expected when connecting to Bitcoin Core v31' "${LOG_DIR}/sv2-tp.log"; then
-            echo "sv2-tp did not select the legacy mining interface" >&2
-            return 1
-        fi
+        scenario_args+=(--expect-legacy-interface)
     fi
-
-    echo "Verifying BIP54 compliance of SRI-mined blocks (heights 18..${count})"
-    bip54_passed=0
-    for ((h = 18; h <= count; ++h)); do
-        if check_bip54_coinbase "${h}"; then
-            bip54_passed=1
-        fi
-    done
-    if (( bip54_passed == 0 )); then
-        echo "SRI integration test: no SRI-mined block satisfied BIP54" >&2
-        exit 1
-    fi
-
-    echo "End-to-end mining scenario completed successfully at regtest height ${count}"
-    cleanup
-}
-
-run_backend_disconnect()
-{
-    local sv2_tp_status=0
-
-    echo "Preparing mining backend disconnect scenario"
-    prepare_runtime_state
-    assert_executables "${BITCOIN}" "${BITCOIN_CLI}" "${SV2_TP}"
-
-    # Exercise backend disconnect detection without an SV2 client.
-    start_bitcoin_core
-    start_sv2_tp
-
-    echo "Stopping the Bitcoin Core backend to test IPC disconnect handling"
-    stop_bitcoin_core
-
-    wait_for_exit_or_kill "${SV2_TP_PID}" 30 || sv2_tp_status="$?"
-    SV2_TP_PID=""
-
-    if (( sv2_tp_status != 0 )); then
-        echo "sv2-tp did not exit cleanly after Bitcoin Core disconnected (status=${sv2_tp_status})" >&2
-        exit 1
-    fi
-
-    if ! grep -q "Mining backend IPC connection lost" "${LOG_DIR}/sv2-tp.log"; then
-        echo "sv2-tp did not log the mining backend IPC disconnect" >&2
-        exit 1
-    fi
-
-    echo "sv2-tp detected the mining backend IPC disconnect and exited cleanly"
-    cleanup
+    python3 "${REPO_ROOT}/ci/test/stratum_v2_scenario.py" "${scenario}" "${scenario_args[@]}"
 }
 
 run_all()
 {
-    run_mining
-    run_backend_disconnect
+    run_scenario mining
+    run_scenario backend-disconnect
 }
-
-trap cleanup EXIT
-trap show_logs ERR
 
 case "${MODE}" in
     all)
@@ -540,10 +219,10 @@ case "${MODE}" in
         run_all
         ;;
     run-mining)
-        run_mining
+        run_scenario mining
         ;;
     run-backend-disconnect)
-        run_backend_disconnect
+        run_scenario backend-disconnect
         ;;
     *)
         echo "Usage: $0 [all|build|build-bitcoin-core|build-sv2-tp|build-sv2-apps|run|run-mining|run-backend-disconnect]" >&2
