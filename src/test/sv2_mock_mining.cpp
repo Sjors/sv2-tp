@@ -9,6 +9,8 @@
 #include <logging.h>
 #include <sv2/messages.h>
 
+#include <stdexcept>
+
 namespace {
 static inline uint256 HashFromHeight(uint64_t h)
 {
@@ -65,7 +67,22 @@ std::vector<CAmount> MockBlockTemplate::getTxFees()
 std::vector<int64_t> MockBlockTemplate::getTxSigops() { return {}; }
 node::CoinbaseTx MockBlockTemplate::getCoinbaseTx() { return ExtractCoinbaseTx(block.vtx[0]); }
 std::vector<uint256> MockBlockTemplate::getCoinbaseMerklePath() { return {}; }
-bool MockBlockTemplate::submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef) { return true; }
+bool MockBlockTemplate::submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef, std::string& reason, std::string& debug)
+{
+    ++state->submit_solution_calls;
+    if (state->reject_solution) {
+        reason = "duplicate";
+        debug = "block already known";
+        return false;
+    }
+    return true;
+}
+
+bool MockBlockTemplate::submitSolutionOld7(uint32_t, uint32_t, uint32_t, CTransactionRef)
+{
+    ++state->submit_solution_old7_calls;
+    return !state->reject_solution;
+}
 
 std::unique_ptr<interfaces::BlockTemplate> MockBlockTemplate::waitNext(node::BlockWaitOptions options)
 {
@@ -152,7 +169,11 @@ void MockBlockTemplate::interruptWait()
 MockMining::MockMining(std::shared_ptr<MockState> st) : state(std::move(st)) {}
 bool MockMining::isTestChain() { return true; }
 bool MockMining::isInitialBlockDownload() { return false; }
-std::optional<interfaces::BlockRef> MockMining::getTip() { return std::nullopt; }
+std::optional<interfaces::BlockRef> MockMining::getTip()
+{
+    if (state->fail_get_tip) throw std::runtime_error("mock getTip failure");
+    return std::nullopt;
+}
 std::optional<interfaces::BlockRef> MockMining::waitTipChanged(uint256, MillisecondsDouble) { return std::nullopt; }
 std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node::BlockCreateOptions&, bool)
 {
@@ -162,6 +183,8 @@ std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node
 }
 void MockMining::interrupt() { LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "mock interrupt()"); }
 bool MockMining::checkBlock(const CBlock&, const node::BlockCheckOptions&, std::string&, std::string&) { return true; }
+bool MockMining::submitBlock(const CBlock&, std::string&, std::string&) { return true; }
+std::vector<CTransactionRef> MockMining::getTransactionsByTxID(const std::vector<Txid>&) { return {}; }
 
 uint64_t MockMining::GetTemplateSeq()
 {

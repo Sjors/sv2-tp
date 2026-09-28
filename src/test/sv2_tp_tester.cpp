@@ -6,6 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 #include <interfaces/init.h>
+#include <ipc/exception.h>
 #include <mp/proxy-io.h>
 #include <src/ipc/capnp/init.capnp.h>
 #include <src/ipc/capnp/init.capnp.proxy.h>
@@ -26,6 +27,48 @@ extern std::function<void(const std::string&)> G_TEST_LOG_FUN;
 #include <unistd.h>
 
 namespace {
+//! Simulates a node without getTransactionsByTxID(), by throwing the same
+//! exception the IPC layer raises for a method the other side does not
+//! implement.
+//!
+//! The mock server can't do this, because it implements every method of the
+//! current interface. Having it throw instead would not be the same thing: a
+//! real Bitcoin Core v31 node does not throw, capnp just tells the client that
+//! the method does not exist.
+class OldNodeMining : public interfaces::Mining
+{
+public:
+    explicit OldNodeMining(std::unique_ptr<interfaces::Mining> mining) : m_mining{std::move(mining)} {}
+
+    bool isTestChain() override { return m_mining->isTestChain(); }
+    bool isInitialBlockDownload() override { return m_mining->isInitialBlockDownload(); }
+    std::optional<interfaces::BlockRef> getTip() override { return m_mining->getTip(); }
+    std::optional<interfaces::BlockRef> waitTipChanged(uint256 current_tip, MillisecondsDouble timeout) override
+    {
+        return m_mining->waitTipChanged(current_tip, timeout);
+    }
+    std::unique_ptr<interfaces::BlockTemplate> createNewBlock(const node::BlockCreateOptions& options, bool cooldown) override
+    {
+        return m_mining->createNewBlock(options, cooldown);
+    }
+    void interrupt() override { m_mining->interrupt(); }
+    bool checkBlock(const CBlock& block, const node::BlockCheckOptions& options, std::string& reason, std::string& debug) override
+    {
+        return m_mining->checkBlock(block, options, reason, debug);
+    }
+    bool submitBlock(const CBlock& block, std::string& reason, std::string& debug) override
+    {
+        return m_mining->submitBlock(block, reason, debug);
+    }
+    std::vector<CTransactionRef> getTransactionsByTxID(const std::vector<Txid>&) override
+    {
+        throw ipc::Exception("kj::Exception: remote exception: Method not implemented.");
+    }
+
+private:
+    std::unique_ptr<interfaces::Mining> m_mining;
+};
+
 struct MockInit : public interfaces::Init {
     std::shared_ptr<MockState> state;
     explicit MockInit(std::shared_ptr<MockState> s) : state(std::move(s)) {}
@@ -38,14 +81,17 @@ struct MockInit : public interfaces::Init {
 
 TPTester::TPTester() : TPTester(Sv2TemplateProviderOptions{.is_test = true}) {}
 
-TPTester::TPTester(Sv2TemplateProviderOptions opts)
+TPTester::TPTester(Sv2TemplateProviderOptions opts, MockNodeVersion version)
     : m_tp_options{opts}, m_state{std::make_shared<MockState>()}, m_mining_control{std::make_shared<MockMining>(m_state)}
 {
     // Start cap'n proto event loop on a background thread
     std::promise<mp::EventLoop*> loop_ready;
     m_loop_thread = std::thread([&] {
-        auto log_fn = [](bool /*raise*/, std::string message) {
-            if (G_TEST_LOG_FUN) G_TEST_LOG_FUN(message);
+        // Mirror IpcLogFn(): an error reported by the IPC layer, such as a
+        // method the other side does not implement, is thrown to the caller.
+        auto log_fn = [](mp::LogMessage message) {
+            if (G_TEST_LOG_FUN) G_TEST_LOG_FUN(message.message);
+            if (message.level == mp::Log::Raise) throw ipc::Exception(message.message);
         };
         mp::EventLoop loop("sv2-tp-test", log_fn);
         m_loop = &loop;
@@ -78,6 +124,9 @@ TPTester::TPTester(Sv2TemplateProviderOptions opts)
     BOOST_REQUIRE(m_client_init != nullptr);
     m_mining_proxy = m_client_init->makeMining();
     BOOST_REQUIRE(m_mining_proxy != nullptr);
+    if (version == MockNodeVersion::V31) {
+        m_mining_proxy = std::make_unique<OldNodeMining>(std::move(m_mining_proxy));
+    }
 
     // Construct Template Provider with the IPC-backed Mining proxy
     m_tp = std::make_unique<Sv2TemplateProvider>(*m_mining_proxy);

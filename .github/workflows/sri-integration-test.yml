@@ -20,6 +20,12 @@ jobs:
           - name: v31.1
             version: '31.1'
             ref: ''
+          - name: v32.0rc2
+            version: '32.0rc2'
+            ref: ''
+          - name: master
+            version: ''
+            ref: master
         scenario:
           - name: end-to-end mining
             id: mining

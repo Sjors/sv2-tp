@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <string_view>
 
 // Allow a few seconds for clients to submit a block or to request transactions
 constexpr size_t STALE_TEMPLATE_GRACE_PERIOD{10};
@@ -104,9 +105,31 @@ fs::path Sv2TemplateProvider::GetAuthorityKeyFile()
     return gArgs.GetDataDirNet() / "sv2_authority_key";
 }
 
+void Sv2TemplateProvider::DetectNodeVersion()
+{
+    // getTransactionsByTxID() was added to the Mining interface after Bitcoin
+    // Core v31. Calling it with an empty list has no side effects, and lets us
+    // find out which interface the node has before we need to know.
+    try {
+        m_mining.getTransactionsByTxID({});
+        m_node_version = NODE_VERSION_32_00;
+    } catch (const ipc::Exception& e) {
+        // ipc::Exception does not preserve the Cap'n Proto error type, so
+        // match its missing-method diagnostic. Other failures must propagate.
+        if (std::string_view{e.what()}.find("Method not implemented.") == std::string_view::npos) throw;
+        m_node_version = NODE_VERSION_31_0;
+        LogTrace(BCLog::SV2, "getTransactionsByTxID() is not available: %s\n", e.what());
+        // The IPC layer logs the failed call above as an error, so explain it.
+        LogInfo("The IPC error above is expected when connecting to Bitcoin Core v31, which "
+                "has an older mining interface\n");
+    }
+}
+
 bool Sv2TemplateProvider::Start(const Sv2TemplateProviderOptions& options)
 {
     m_options = options;
+
+    DetectNodeVersion();
 
     if (!m_connman->Start(this, m_options.host, m_options.port)) {
         return false;
@@ -582,12 +605,31 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
             block_template = cached_block_template->second.second;
         }
 
-        // Submit the solution to construct and process the block
-        const bool submitted = block_template->submitSolution(
-            solution.m_version,
-            solution.m_header_timestamp,
-            solution.m_header_nonce,
-            MakeTransactionRef(solution.m_coinbase_tx));
+        // Submit the solution to construct and process the block, using the
+        // method that DetectNodeVersion() found.
+        const CTransactionRef coinbase_tx{MakeTransactionRef(solution.m_coinbase_tx)};
+        std::string reason, debug;
+        bool submitted{false};
+
+        if (m_node_version < NODE_VERSION_32_00) {
+            submitted = block_template->submitSolutionOld7(solution.m_version,
+                                                           solution.m_header_timestamp,
+                                                           solution.m_header_nonce,
+                                                           coinbase_tx);
+        } else {
+            submitted = block_template->submitSolution(solution.m_version,
+                                                       solution.m_header_timestamp,
+                                                       solution.m_header_nonce,
+                                                       coinbase_tx,
+                                                       reason,
+                                                       debug);
+        }
+
+        if (!submitted) {
+            LogWarning("Block was not accepted as a new block: %s%s\n",
+                       reason.empty() ? std::string{"unknown reason"} : reason,
+                       debug.empty() ? std::string{} : strprintf(" (%s)", debug));
+        }
 
         SaveBlockAsync(block_template, submitted);
 }
