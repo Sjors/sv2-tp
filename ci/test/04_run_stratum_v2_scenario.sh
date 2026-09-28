@@ -64,9 +64,9 @@ fi
 readonly BITCOIN="${BITCOIN_BINDIR}/bitcoin"
 readonly BITCOIN_CLI="${BITCOIN_BINDIR}/bitcoin-cli"
 readonly SV2_TP="${REPO_ROOT}/build/bin/sv2-tp"
-readonly POOL_SV2="${SV2_APPS_DIR}/pool-apps/target/release/pool_sv2"
+readonly POOL_SV2="${SV2_APPS_DIR}/target/release/pool_sv2"
 readonly MINING_DEVICE_MANIFEST="${SV2_APPS_DIR}/integration-tests/Cargo.toml"
-readonly MINING_DEVICE="${SV2_APPS_DIR}/integration-tests/target/release/mining_device"
+readonly MINING_DEVICE="${SV2_APPS_DIR}/target/release/mining_device"
 readonly -a BITCOIN_ARGS=("-datadir=${DATADIR}")
 
 SV2_TP_PID=""
