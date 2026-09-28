@@ -40,11 +40,36 @@
 
 namespace mp {
 
-thread_local ThreadContext g_thread_context; // NOLINT(bitcoin-nontrivial-threadlocal)
-
 ThreadContext& CurrentThread()
 {
-    return g_thread_context;
+#ifdef __MINGW32__
+    // On MinGW only, deliberately leak a heap object instead of using a plain
+    // thread_local variable, because MinGW-w64's emutls implementation can
+    // free the storage backing thread_local variables before C++ destructors
+    // registered by __cxa_thread_atexit run at thread exit (pthread key
+    // destructor order is unspecified), so a nontrivial thread_local
+    // destructor can run on freed memory and corrupt the heap. Observed as
+    // intermittent STATUS_HEAP_CORRUPTION (0xC0000374) crashes in msvcrt
+    // builds. See the full explanation, gdb evidence, and mingw-w64 bug
+    // tracker links (bugs 527, 727, 445, 859, msys2 issue 2519) in the
+    // CurrentThread() declaration comment in proxy-io.h. The leaked object
+    // is held by a trivially-destructible thread_local pointer so no
+    // destructor is registered at thread exit at all.
+    //
+    // The leak is confined to MinGW because the number of IPC threads a
+    // process can create is unbounded, so leaking per-thread state on
+    // platforms with working thread_local destruction would be a real
+    // resource leak. TODO: a better long-term fix could explicitly destroy
+    // the context at the end of mp-managed thread routines (the
+    // EventLoop::loop thread, the EventLoop async thread, and
+    // ProxyServer<ThreadMap>::makeThread threads), so that even on MinGW the
+    // leak would only apply to externally-created client threads.
+    thread_local ThreadContext* context{new ThreadContext};
+    return *context;
+#else
+    thread_local ThreadContext context; // NOLINT(bitcoin-nontrivial-threadlocal)
+    return context;
+#endif
 }
 
 Stream MakeStream(EventLoop&loop, SocketId socket)
@@ -231,6 +256,40 @@ void Connection::removeSyncCleanup(CleanupIt it)
     m_sync_cleanup_fns.erase(it);
 }
 
+#ifdef WIN32
+//! Synchronous socket output stream. Cap'n Proto library only provides limited
+//! support for synchronous IO. It provides `FdOutputStream` which wraps unix
+//! file descriptors and calls write() internally, and `HandleOutStream` which
+//! wraps windows HANDLE values and calls WriteFile() internally. This class
+//! just provides analogous functionality wrapping SOCKET values and calls
+//! send() internally.
+class SocketOutputStream : public kj::OutputStream {
+public:
+  explicit SocketOutputStream(SOCKET socket) : m_socket(socket) {}
+
+  void write(const void* buffer, size_t size) override;
+
+private:
+  SOCKET m_socket;
+};
+
+static constexpr size_t WRITE_CLAMP_SIZE = 1u << 30;  // 1GB clamp for Windows, like FdOutputStream
+
+void SocketOutputStream::write(const void* buffer, size_t size) {
+  const char* pos = reinterpret_cast<const char*>(buffer);
+
+  while (size > 0) {
+    int n = send(m_socket, pos, static_cast<int>(kj::min(size, WRITE_CLAMP_SIZE)), 0);
+
+    KJ_WIN32(n != SOCKET_ERROR, "send() failed");
+    KJ_ASSERT(n > 0, "send() returned zero.");
+
+    pos += n;
+    size -= n;
+  }
+}
+#endif
+
 void EventLoop::addAsyncCleanup(std::function<void()> fn)
 {
     const Lock lock(m_mutex);
@@ -266,6 +325,10 @@ EventLoop::EventLoop(const char* exe_name, LogOptions log_opts, void* context)
     m_post_stream = kj::mv(pipe.ends[1]);
     KJ_IF_MAYBE(fd, m_post_stream->getFd()) {
         m_post_writer = kj::heap<kj::FdOutputStream>(*fd);
+#ifdef WIN32
+    } else KJ_IF_MAYBE(handle, m_post_stream->getWin32Handle()) {
+        m_post_writer = kj::heap<SocketOutputStream>(reinterpret_cast<SOCKET>(*handle));
+#endif
     } else {
         throw std::logic_error("Could not get file descriptor for new pipe.");
     }
