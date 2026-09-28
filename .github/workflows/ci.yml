@@ -105,6 +105,22 @@ jobs:
     if: ${{ vars.SKIP_BRANCH_PUSH != 'true' || github.event_name == 'pull_request' }}
     uses: ./.github/workflows/sri-integration-test.yml
 
+  stratum-v2-regtest-windows-native:
+    name: 'SRI integration test (Windows native)'
+    if: vars.SKIP_BRANCH_PUSH != 'true' || github.event_name == 'pull_request'
+    uses: ./.github/workflows/sri-integration-test-windows.yml
+    with:
+      windows-compiler: MSVC
+
+  stratum-v2-regtest-windows-cross:
+    name: 'SRI integration test (Windows cross-built)'
+    needs: windows-cross
+    if: vars.SKIP_BRANCH_PUSH != 'true' || github.event_name == 'pull_request'
+    uses: ./.github/workflows/sri-integration-test-windows.yml
+    with:
+      windows-compiler: MinGW
+      windows-artifact: x86_64-w64-mingw32-executables-${{ github.run_id }}
+
   macos-native-arm64:
     name: ${{ matrix.job-name }}
     # Use any image to support the xcode-select below, but hardcode version to avoid silent upgrades (and breaks).
@@ -237,6 +253,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: x86_64-w64-mingw32-executables-${{ github.run_id }}
+          if-no-files-found: error
           path: |
             ${{ env.BASE_BUILD_DIR }}/bin/*.exe
             ${{ env.BASE_BUILD_DIR }}/test/config.ini
