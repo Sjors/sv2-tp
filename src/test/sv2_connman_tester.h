@@ -28,12 +28,15 @@ private:
 public:
     std::unique_ptr<Sv2Connman> m_connman; //!< Sv2Connman being tested
     std::atomic<size_t> m_submit_solution_count{0}; //!< Number of SubmitSolution messages forwarded to us
+    std::atomic<size_t> m_request_transaction_data_count{0}; //!< Number of RequestTransactionData messages forwarded to us
 
     ConnTester();
     ~ConnTester();
 
     void RemoteToLocalBytes();
     size_t LocalToRemoteBytes();
+    /** Retrieve the message completed by LocalToRemoteBytes(). */
+    Sv2NetMsg GetReceivedMessage();
     void handshake();
     void RemoteToLocalMsg(Sv2NetMsg& msg);
     bool IsConnected();

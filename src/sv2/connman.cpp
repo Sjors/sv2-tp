@@ -423,6 +423,27 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
             return;
         }
 
+        bool setup_complete;
+        {
+            LOCK(client.cs_status);
+            setup_complete = client.m_setup_connection_confirmed && client.m_coinbase_output_constraints_recv;
+            if (!setup_complete) {
+                LogPrintLevel(BCLog::SV2, BCLog::Level::Warning, "Received RequestTransactionData before SetupConnection and CoinbaseOutputConstraints (setup_connection=%d, coinbase_output_constraints=%d) from client id=%zu\n",
+                              client.m_setup_connection_confirmed, client.m_coinbase_output_constraints_recv, client.m_id);
+            }
+        }
+        if (!setup_complete) {
+            // Beyond the spec's explicit requirements, we retain cached templates
+            // across client disconnects until normal pruning, and tolerate
+            // out-of-order RequestTransactionData by replying with an error
+            // instead of disconnecting. This lets a following SubmitSolution
+            // use a template from the client's previous connection.
+            node::Sv2RequestTransactionDataErrorMsg error{request_tx_data.m_template_id, "setup-incomplete"};
+            LOCK(client.cs_send);
+            client.m_send_messages.emplace_back(error);
+            return;
+        }
+
         m_msgproc->RequestTransactionData(client, request_tx_data);
 
         break;

@@ -94,16 +94,58 @@ BOOST_AUTO_TEST_CASE(submit_solution_forwarded)
 // submitting its solution. Missing constraints must not disconnect it first.
 BOOST_AUTO_TEST_CASE(submit_solution_after_premature_request_transaction_data)
 {
+    Sv2LogCapture logs;
     ConnTester tester{};
 
     tester.handshake();
     node::Sv2NetMsg setup{tester.SetupConnectionMsg()};
     tester.RemoteToLocalMsg(setup);
     BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), SV2_HEADER_ENCRYPTED_SIZE + 6 + Poly1305::TAGLEN);
+    BOOST_REQUIRE(tester.GetReceivedMessage().m_msg_type == node::Sv2MsgType::SETUP_CONNECTION_SUCCESS);
 
     std::vector<uint8_t> template_id_bytes{0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     node::Sv2NetMsg request{node::Sv2MsgType::REQUEST_TRANSACTION_DATA, std::move(template_id_bytes)};
     tester.RemoteToLocalMsg(request);
+    node::Sv2NetMsg solution{TestSubmitSolutionMsg()};
+    tester.RemoteToLocalMsg(solution);
+    BOOST_REQUIRE(tester.WaitForCount(tester.m_submit_solution_count, 1));
+    BOOST_REQUIRE(tester.LocalToRemoteBytes() > 0);
+    const auto reply{tester.GetReceivedMessage()};
+    const node::Sv2NetMsg expected{node::Sv2RequestTransactionDataErrorMsg{2, "setup-incomplete"}};
+    BOOST_REQUIRE(reply.m_msg_type == expected.m_msg_type);
+    BOOST_REQUIRE(reply.m_msg == expected.m_msg);
+    BOOST_REQUIRE_EQUAL(tester.m_request_transaction_data_count.load(), 0);
+    BOOST_REQUIRE(tester.IsConnected());
+    BOOST_REQUIRE(logs.WaitFor("Received RequestTransactionData before SetupConnection and CoinbaseOutputConstraints (setup_connection=1, coinbase_output_constraints=0)"));
+
+    // Completing setup lets the client retry on the same connection.
+    std::vector<uint8_t> constraints_bytes{0x01, 0x00, 0x00, 0x00};
+    node::Sv2NetMsg constraints{node::Sv2MsgType::COINBASE_OUTPUT_CONSTRAINTS, std::move(constraints_bytes)};
+    tester.RemoteToLocalMsg(constraints);
+    node::Sv2NetMsg retry{node::Sv2MsgType::REQUEST_TRANSACTION_DATA, {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    tester.RemoteToLocalMsg(retry);
+    BOOST_REQUIRE(tester.WaitForCount(tester.m_request_transaction_data_count, 1));
+    BOOST_REQUIRE(tester.IsConnected());
+}
+
+BOOST_AUTO_TEST_CASE(request_transaction_data_before_setup_connection_error)
+{
+    Sv2LogCapture logs;
+    ConnTester tester{};
+
+    tester.handshake();
+    std::vector<uint8_t> template_id_bytes{0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    node::Sv2NetMsg request{node::Sv2MsgType::REQUEST_TRANSACTION_DATA, std::move(template_id_bytes)};
+    tester.RemoteToLocalMsg(request);
+    BOOST_REQUIRE(tester.LocalToRemoteBytes() > 0);
+    const auto reply{tester.GetReceivedMessage()};
+    const node::Sv2NetMsg expected{node::Sv2RequestTransactionDataErrorMsg{2, "setup-incomplete"}};
+    BOOST_REQUIRE(reply.m_msg_type == expected.m_msg_type);
+    BOOST_REQUIRE(reply.m_msg == expected.m_msg);
+    BOOST_REQUIRE_EQUAL(tester.m_request_transaction_data_count.load(), 0);
+    BOOST_REQUIRE(tester.IsConnected());
+    BOOST_REQUIRE(logs.WaitFor("Received RequestTransactionData before SetupConnection and CoinbaseOutputConstraints (setup_connection=0, coinbase_output_constraints=0)"));
+
     node::Sv2NetMsg solution{TestSubmitSolutionMsg()};
     tester.RemoteToLocalMsg(solution);
     BOOST_REQUIRE(tester.WaitForCount(tester.m_submit_solution_count, 1));

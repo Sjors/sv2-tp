@@ -54,6 +54,15 @@ size_t ConnTester::LocalToRemoteBytes()
         std::chrono::milliseconds{1000}, "connman_local_to_remote", /*allow_zero_first=*/true);
 }
 
+Sv2NetMsg ConnTester::GetReceivedMessage()
+{
+    BOOST_REQUIRE(m_remote_transport->ReceivedMessageComplete());
+    bool reject_message{false};
+    Sv2NetMsg msg{m_remote_transport->GetReceivedMessage(std::chrono::microseconds{0}, reject_message)};
+    BOOST_REQUIRE(!reject_message);
+    return msg;
+}
+
 /* Create a new client and perform handshake */
 void ConnTester::handshake()
 {
@@ -142,6 +151,7 @@ bool ConnTester::WaitForCount(const std::atomic<size_t>& counter, size_t count)
 void ConnTester::RequestTransactionData(Sv2Client& client, node::Sv2RequestTransactionDataMsg msg)
 {
     BOOST_TEST_MESSAGE("Process RequestTransactionData");
+    ++m_request_transaction_data_count;
 }
 
 void ConnTester::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
