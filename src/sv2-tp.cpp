@@ -13,6 +13,7 @@
 #include <init/common.h>
 #include <interfaces/init.h>
 #include <interfaces/ipc.h>
+#include <ipc/context.h>
 #include <ipc/exception.h>
 #include <logging.h>
 #include <sv2/template_provider.h>
@@ -24,6 +25,7 @@
 #include <util/translation.h>
 
 #include <cerrno>
+#include <cstdlib>
 #ifndef WIN32
 #include <csignal>
 #endif
@@ -242,6 +244,15 @@ MAIN_FUNCTION
     // If the node is not available, keep retrying in a loop.
     std::unique_ptr<interfaces::Init> mine_init{interfaces::MakeBasicInit("sv2-tp", argc > 0 ? argv[0] : "")};
     assert(mine_init);
+    // Work around https://github.com/bitcoin-core/libmultiprocess/pull/361:
+    // exiting IPC threads can race with disconnect cleanup. Exit before that
+    // cleanup starts, removing the PID file explicitly because _Exit skips
+    // destructors. Requested shutdown still follows the normal cleanup path.
+    mine_init->ipc()->context().on_disconnect = [] {
+        LogInfo("Mining backend IPC connection lost; exiting before IPC cleanup");
+        RemovePidFile(gArgs);
+        std::_Exit(EXIT_FAILURE);
+    };
     std::string address{args.GetArg("-ipcconnect", "unix")};
 
     LogPrintf("Attempting IPC connection to bitcoin-node at %s\n", address);

@@ -5,6 +5,8 @@
 #ifndef BITCOIN_IPC_CONTEXT_H
 #define BITCOIN_IPC_CONTEXT_H
 
+#include <functional>
+
 namespace ipc {
 //! Context struct used to give IPC protocol implementations or implementation
 //! hooks access to application state, in case they need to run extra code that
@@ -13,6 +15,11 @@ namespace ipc {
 //! with shared objects that are created or destroyed remotely.
 struct Context
 {
+    //! Temporary hook for the libmultiprocess PR #361 workaround.
+    //! Optional handler for outgoing remote disconnects, called on the event
+    //! loop thread before proxy cleanup. Set before connecting; must not throw
+    //! or wait for IPC.
+    std::function<void()> on_disconnect;
 };
 } // namespace ipc
 

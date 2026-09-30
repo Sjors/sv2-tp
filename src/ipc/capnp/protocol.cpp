@@ -75,7 +75,19 @@ public:
     std::unique_ptr<interfaces::Init> connect(mp::Stream stream) override
     {
         startLoop();
-        return mp::ConnectStream<messages::Init>(*m_loop, std::move(stream));
+        if (!m_context.on_disconnect) return mp::ConnectStream<messages::Init>(*m_loop, std::move(stream));
+
+        // The temporary PR #361 workaround must run before ProxyClient
+        // deletes the connection. Inline ConnectStream to insert it first.
+        messages::Init::Client client{nullptr};
+        std::unique_ptr<mp::Connection> connection;
+        m_loop->sync([&] {
+            connection = std::make_unique<mp::Connection>(*m_loop, std::move(stream));
+            connection->onDisconnect(m_context.on_disconnect);
+            client = connection->m_rpc_system->bootstrap(mp::ServerVatId().vat_id).castAs<messages::Init>();
+        });
+        return std::make_unique<mp::ProxyClient<messages::Init>>(
+            std::move(client), connection.release(), /*destroy_connection=*/true);
     }
     void listen(mp::SocketId listen_fd, interfaces::Init& init) override
     {
