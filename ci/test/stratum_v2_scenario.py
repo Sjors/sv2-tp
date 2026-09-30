@@ -105,9 +105,10 @@ class Scenario:
             # Exercise backend disconnect detection without an SV2 client.
             self.rpc("stop")
             assert self.backend.wait(timeout=60) == 0, "Bitcoin Core failed to stop cleanly"
-            assert provider.wait(timeout=30) == 0, "sv2-tp failed to stop cleanly"
+            assert provider.wait(timeout=30) == 1, "sv2-tp did not report backend loss as a failure"
             assert self.log_contains("Mining backend IPC connection lost"), "Missing backend disconnect log"
-            print(f"PASS: {self.args.scenario}; backend and sv2-tp exited cleanly", flush=True)
+            assert not (self.data / "regtest" / "sv2-tp.pid").exists(), "sv2-tp did not remove its PID file"
+            print(f"PASS: {self.args.scenario}; sv2-tp cleaned up and exited with failure", flush=True)
         except Exception:
             for log in [*self.logs.glob("*.log"), *self.data.glob("regtest/*.log")]:
                 print(f"===== {log} =====", flush=True)

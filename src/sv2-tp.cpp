@@ -301,11 +301,13 @@ MAIN_FUNCTION
 
     // Probe the mining IPC connection even when no SV2 clients are connected,
     // so a backend disconnect triggers shutdown.
+    int exit_status{EXIT_SUCCESS};
     while (!g_interrupt) {
         try {
             mining->isInitialBlockDownload();
         } catch (const ipc::Exception& e) {
             LogPrintf("Mining backend IPC connection lost: %s\n", e.what());
+            exit_status = EXIT_FAILURE;
             tp->BackendDisconnected();
             break;
         }
@@ -316,5 +318,6 @@ MAIN_FUNCTION
     tp->StopThreads();
     tp.reset();
 
-    return EXIT_SUCCESS;
+    // Cleanup is graceful in both cases, but backend loss is a service failure.
+    return exit_status;
 }

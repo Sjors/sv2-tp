@@ -33,6 +33,7 @@ Type=simple
 PIDFile=/run/bitcoin/sv2-tp.pid
 
 Restart=on-failure
+RestartSec=5s
 TimeoutStartSec=infinity
 TimeoutStopSec=600
 
