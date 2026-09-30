@@ -187,7 +187,7 @@ void TPTester::SendPeerBytes(size_t peer_id)
  *
  * This removes brittleness where a single partial handshake/frame fragment caused an assertion failure.
  */
-size_t TPTester::PeerReceiveBytes(size_t peer_id)
+size_t TPTester::PeerReceiveBytes(size_t peer_id, Sv2NetMsg* message)
 {
     Peer& peer{GetPeer(peer_id)};
     // Use shared fragment-tolerant helper for uniform instrumentation across tests.
@@ -209,10 +209,12 @@ size_t TPTester::PeerReceiveBytes(size_t peer_id)
         BOOST_FAIL("tp_peer_recv: full handshake bytes accumulated (" << total << ") but transport not READY (expected ReadMsgES success)");
     }
 
+    if (message) BOOST_REQUIRE(peer.transport->ReceivedMessageComplete());
     if (peer.transport && peer.transport->ReceivedMessageComplete()) {
         bool reject_message = false;
-        peer.transport->GetReceivedMessage(std::chrono::microseconds{0}, reject_message);
+        Sv2NetMsg received{peer.transport->GetReceivedMessage(std::chrono::microseconds{0}, reject_message)};
         BOOST_REQUIRE(!reject_message);
+        if (message) *message = std::move(received);
     }
     return consumed_total > 0 ? consumed_total : total;
 }
@@ -293,39 +295,23 @@ void TPTester::SendCoinbaseOutputConstraints(size_t peer_id)
     receiveMessage(coc_msg, peer_id);
 }
 
-size_t TPTester::ReceiveTemplatePair(size_t peer_id)
+uint64_t TPTester::ReceiveTemplatePair(size_t peer_id)
 {
-    const size_t expected_set_new_prev_hash = SV2_HEADER_ENCRYPTED_SIZE + SV2_SET_NEW_PREV_HASH_MSG_SIZE + Poly1305::TAGLEN;
-    const size_t expected_new_template = SV2_HEADER_ENCRYPTED_SIZE + SV2_NEW_TEMPLATE_MSG_SIZE + Poly1305::TAGLEN;
-    const size_t expected_pair_bytes = expected_set_new_prev_hash + expected_new_template;
+    Sv2NetMsg new_template{node::Sv2MsgType::NEW_TEMPLATE, {}};
+    BOOST_REQUIRE_EQUAL(PeerReceiveBytes(peer_id, &new_template), SV2_HEADER_ENCRYPTED_SIZE + SV2_NEW_TEMPLATE_MSG_SIZE + Poly1305::TAGLEN);
+    BOOST_REQUIRE(new_template.m_msg_type == node::Sv2MsgType::NEW_TEMPLATE);
+    DataStream template_stream{MakeByteSpan(new_template.m_msg)};
+    uint64_t template_id;
+    bool future_template;
+    template_stream >> template_id >> future_template;
+    BOOST_REQUIRE(future_template);
 
-    size_t accumulated = 0;
-    bool seen_prev_hash = false;
-    bool seen_new_template = false;
-    int iterations = 0;
-
-    while (accumulated < expected_pair_bytes) {
-        size_t chunk = PeerReceiveBytes(peer_id);
-        accumulated += chunk;
-        ++iterations;
-
-        if (chunk == expected_set_new_prev_hash) {
-            seen_prev_hash = true;
-        } else if (chunk == expected_new_template) {
-            seen_new_template = true;
-        } else if (chunk == expected_pair_bytes) {
-            seen_prev_hash = true;
-            seen_new_template = true;
-            break;
-        } else {
-            BOOST_FAIL("Unexpected message size in template pair");
-        }
-
-        BOOST_REQUIRE_MESSAGE(iterations <= 2, "Too many fragments in template pair");
-    }
-
-    BOOST_REQUIRE_MESSAGE(seen_prev_hash, "Missing SetNewPrevHash in template pair");
-    BOOST_REQUIRE_MESSAGE(seen_new_template, "Missing NewTemplate in template pair");
-    BOOST_REQUIRE_EQUAL(accumulated, expected_pair_bytes);
-    return accumulated;
+    Sv2NetMsg new_prev_hash{node::Sv2MsgType::SET_NEW_PREV_HASH, {}};
+    BOOST_REQUIRE_EQUAL(PeerReceiveBytes(peer_id, &new_prev_hash), SV2_HEADER_ENCRYPTED_SIZE + SV2_SET_NEW_PREV_HASH_MSG_SIZE + Poly1305::TAGLEN);
+    BOOST_REQUIRE(new_prev_hash.m_msg_type == node::Sv2MsgType::SET_NEW_PREV_HASH);
+    DataStream prev_hash_stream{MakeByteSpan(new_prev_hash.m_msg)};
+    uint64_t prev_hash_template_id;
+    prev_hash_stream >> prev_hash_template_id;
+    BOOST_REQUIRE_EQUAL(prev_hash_template_id, template_id);
+    return template_id;
 }
