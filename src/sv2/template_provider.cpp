@@ -451,6 +451,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                     prev_hash = new_prev_hash;
                 }
 
+                uint64_t template_id;
                 {
                     LOCK(m_tp_mutex);
                     // m_best_prev_hash only tracks the best tip for template
@@ -461,11 +462,13 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                         m_last_block_time = GetTime<std::chrono::seconds>();
                     }
 
-                    ++m_template_id;
+                    // Keep this handler's ID: another client may allocate one
+                    // before we acquire m_clients_mutex to send the template.
+                    template_id = ++m_template_id;
 
                     // Add template to cache before sending it, to prevent race
                     // condition: https://github.com/stratum-mining/stratum/issues/1773
-                    m_block_template_cache.insert({m_template_id, std::make_pair(new_prev_hash,block_template)});
+                    m_block_template_cache.insert({template_id, std::make_pair(new_prev_hash,block_template)});
                 }
 
                 {
@@ -483,7 +486,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                         continue;
                     }
 
-                    if (!SendWork(*client, WITH_LOCK(m_tp_mutex, return m_template_id;), *block_template, future_template)) {
+                    if (!SendWork(*client, template_id, *block_template, future_template)) {
                         LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Disconnecting client id=%zu\n",
                                     client_id);
                         LOCK(client->cs_status);

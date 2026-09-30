@@ -21,6 +21,7 @@
 #include <exception>
 #include <future>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -342,6 +343,47 @@ BOOST_AUTO_TEST_CASE(two_clients_receive_set_new_prev_hash)
     // ...and both clients must receive NewTemplate + SetNewPrevHash.
     tester.ReceiveTemplatePair(0);
     tester.ReceiveTemplatePair(1);
+
+    tester.m_mining_control->Shutdown();
+}
+
+// Regression test for https://github.com/stratum-mining/sv2-tp/issues/129.
+// Concurrent handlers must send the ID allocated to their own cached template.
+BOOST_AUTO_TEST_CASE(multiple_clients_receive_own_template_id)
+{
+    TPTester tester{};
+    constexpr size_t NUM_CLIENTS{6};
+    std::set<uint64_t> template_ids;
+
+    const auto receive_and_check = [&](size_t peer_id) {
+        const uint64_t template_id{tester.ReceiveTemplatePair(peer_id)};
+        BOOST_REQUIRE_MESSAGE(template_ids.insert(template_id).second, "Clients received a duplicate template ID");
+
+        const uint256 tip{WITH_LOCK(tester.m_state->m, return tester.m_state->chain.prev_hash;)};
+        LOCK(tester.m_tp->m_tp_mutex);
+        const auto& templates{tester.m_tp->GetBlockTemplates()};
+        const auto cached{templates.find(template_id)};
+        BOOST_REQUIRE_MESSAGE(cached != templates.end(), "Received template ID is not cached");
+        BOOST_REQUIRE(cached->second.first == tip);
+    };
+
+    for (size_t peer_id = 0; peer_id < NUM_CLIENTS; ++peer_id) {
+        tester.handshake(peer_id);
+        tester.SendSetupConnection(peer_id);
+        tester.SendCoinbaseOutputConstraints(peer_id);
+        receive_and_check(peer_id);
+    }
+
+    // Exercise repeated tip changes, when all handlers build templates together.
+    for (int tip = 0; tip < 10; ++tip) {
+        BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext(NUM_CLIENTS));
+        const uint64_t seq{tester.m_mining_control->GetTemplateSeq()};
+        tester.m_mining_control->TriggerNewTip();
+        BOOST_REQUIRE(tester.m_mining_control->WaitForTemplateSeq(seq + NUM_CLIENTS));
+        for (size_t peer_id = 0; peer_id < NUM_CLIENTS; ++peer_id) {
+            receive_and_check(peer_id);
+        }
+    }
 
     tester.m_mining_control->Shutdown();
 }

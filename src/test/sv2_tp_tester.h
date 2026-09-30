@@ -64,7 +64,7 @@ public:
     ~TPTester();
 
     void SendPeerBytes(size_t peer_id = 0);
-    size_t PeerReceiveBytes(size_t peer_id = 0);
+    size_t PeerReceiveBytes(size_t peer_id = 0, Sv2NetMsg* message = nullptr);
     /** Connect (or reconnect) peer and perform the noise handshake. */
     void handshake(size_t peer_id = 0);
     void receiveMessage(Sv2NetMsg& msg, size_t peer_id = 0);
@@ -75,8 +75,8 @@ public:
     void SendSetupConnection(size_t peer_id = 0);
     /** Send CoinbaseOutputConstraints message. */
     void SendCoinbaseOutputConstraints(size_t peer_id = 0);
-    /** Receive a NewTemplate + SetNewPrevHash pair and verify sizes. Returns total bytes. */
-    size_t ReceiveTemplatePair(size_t peer_id = 0);
+    /** Receive a NewTemplate + SetNewPrevHash pair and verify sizes and matching IDs. Returns the template ID. */
+    uint64_t ReceiveTemplatePair(size_t peer_id = 0);
 
     // SV2 message payload sizes used for test verification
     static constexpr size_t SV2_SET_NEW_PREV_HASH_MSG_SIZE =
