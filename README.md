@@ -29,11 +29,12 @@ dependencies.
 
 Usage
 ------------------------
-Download or compile Bitcoin Core v31.0 or later. `sv2-tp` v1.0.6 is the last
-release that works with Bitcoin Core v30.2.
+Download or compile Bitcoin Core v31 or v32. `sv2-tp` v1.1.2 supports both
+versions. When upgrading to Bitcoin Core v32, upgrade `sv2-tp` to v1.1.2
+first because the IPC block-submission interface has changed.
 
-Newer releases, as well as compiling from source, require Bitcoin Core v31.0
-or later because of breaking changes in the IPC mining interface.
+`sv2-tp` v1.1.0 and v1.1.1 support Bitcoin Core v31. `sv2-tp` v1.0.6 is
+the last release that works with Bitcoin Core v30.2.
 
 Start it with:
 
