@@ -99,10 +99,8 @@ class Scenario:
                 self.mine(provider, fixtures)
                 if self.args.expect_legacy_interface:
                     assert self.log_contains("The IPC error above is expected when connecting to Bitcoin Core v31"), "Legacy mining interface was not selected"
-                print("PASS: mining", flush=True)
-                return
-
-            # Exercise backend disconnect detection without an SV2 client.
+            # After mining, stop the backend while the pool is still connected
+            # to cover the IPC teardown race. Also check the no-client scenario.
             self.rpc("stop")
             assert self.backend.wait(timeout=60) == 0, "Bitcoin Core failed to stop cleanly"
             assert provider.wait(timeout=30) == 1, "sv2-tp did not report backend loss as a failure"
