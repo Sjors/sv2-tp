@@ -532,4 +532,64 @@ BOOST_AUTO_TEST_CASE(coinbase_constraints_beyond_block_weight_disconnects)
     BOOST_CHECK(tester.m_mining_control->GetCreateWeights().empty());
 }
 
+// A node running with a lower -blockmaxweight rejects a reserved weight that
+// sv2-tp can't check up front. Log why and disconnect the client, rather than
+// leave it connected without templates.
+BOOST_AUTO_TEST_CASE(template_creation_failure_disconnects_client)
+{
+    Sv2LogCapture logs;
+    TPTester tester{};
+    {
+        LOCK(tester.m_state->m);
+        tester.m_state->max_reserved_weight = 100'000; // like -blockmaxweight=100000
+    }
+    tester.handshake();
+    tester.SendSetupConnection();
+    // Reserved weight 1168 + 400 + 4 * 30'000 = 121'568: fits in a block, but not in this node's limit.
+    tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/30'000);
+    BOOST_CHECK(WaitForNoConnectedClients(tester));
+    BOOST_CHECK(logs.WaitFor("Could not create a template for client id=0, disconnecting: "));
+    const auto weights{tester.m_mining_control->GetCreateWeights()};
+    BOOST_CHECK(std::find(weights.begin(), weights.end(), uint64_t{121'568}) != weights.end());
+}
+
+// Any other failure that ends the client's handler thread must also disconnect
+// the client, since no thread will send it templates anymore.
+BOOST_AUTO_TEST_CASE(handler_failure_disconnects_client)
+{
+    TPTester tester{};
+    tester.handshake();
+    tester.SendSetupConnection();
+    tester.SendCoinbaseOutputConstraints();
+    tester.ReceiveTemplatePair();
+    BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext(1));
+    tester.m_mining_control->FailWaitNext();
+    BOOST_CHECK(WaitForNoConnectedClients(tester));
+}
+
+// Larger constraints sent after a template was already delivered take the
+// regeneration path, which must log and disconnect in the same way.
+BOOST_AUTO_TEST_CASE(updated_constraints_beyond_node_limit_disconnect)
+{
+    Sv2LogCapture logs;
+    TPTester tester{};
+    {
+        LOCK(tester.m_state->m);
+        tester.m_state->max_reserved_weight = 100'000; // like -blockmaxweight=100000
+    }
+    tester.handshake();
+    tester.SendSetupConnection();
+    tester.SendCoinbaseOutputConstraints();
+    tester.ReceiveTemplatePair();
+    BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext(1));
+
+    // Reserved weight 121'568 fits in a block, but not in this node's limit.
+    tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/30'000);
+    BOOST_CHECK(WaitForNoConnectedClients(tester));
+    BOOST_CHECK(logs.WaitFor("Could not create a template for client id=0, disconnecting: "));
+    const auto weights{tester.m_mining_control->GetCreateWeights()};
+    BOOST_REQUIRE(!weights.empty());
+    BOOST_CHECK_EQUAL(weights.back(), uint64_t{121'568});
+}
+
 BOOST_AUTO_TEST_SUITE_END()

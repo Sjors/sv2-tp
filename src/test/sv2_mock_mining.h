@@ -55,6 +55,10 @@ struct MockState {
     uint64_t max_reserved_weight GUARDED_BY(m){0};
     //! block_reserved_weight of every createNewBlock() call, including ones that throw.
     std::vector<uint64_t> create_weights GUARDED_BY(m);
+    //! Make waitNext() throw, e.g. to simulate a failed IPC call. Protected by
+    //! m, but not GUARDED_BY(m) because waitNext() waits on a std::unique_lock,
+    //! like for shutdown below.
+    bool fail_wait_next{false};
     ChainState chain;                // grouped chain data
     std::vector<CTransactionRef> txs; // non-coinbase transactions included in templates
     std::queue<MockEvent> events;    // queued events driving waitNext()
@@ -110,6 +114,8 @@ public:
     uint64_t GetTemplateSeq();
     uint64_t GetHeight();
     std::vector<uint64_t> GetCreateWeights();
+    //! Make every current and future waitNext() call throw.
+    void FailWaitNext();
 
     // Test control helpers
     void TriggerFeeIncrease(std::vector<CTransactionRef> txs);

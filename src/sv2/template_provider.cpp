@@ -295,6 +295,16 @@ void Sv2TemplateProvider::ThreadSv2Handler()
 
 void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 {
+    // A client without a handler thread never receives templates again, so
+    // disconnect it when this thread gives up.
+    const auto disconnect_client = [this, client_id] {
+        LOCK(m_connman->m_clients_mutex);
+        if (std::shared_ptr<Sv2Client> client = m_connman->GetClientById(client_id)) {
+            LOCK(client->cs_status);
+            client->m_disconnect_flag = true;
+        }
+    };
+
     try {
         Timer timer(m_options.template_interval);
 
@@ -335,7 +345,18 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 if (!prepare_block_create_options(block_create_options)) break;
 
                 const auto time_start{SteadyClock::now()};
-                block_template = m_mining.createNewBlock(block_create_options);
+                try {
+                    block_template = m_mining.createNewBlock(block_create_options);
+                } catch (const std::exception& e) {
+                    // Bitcoin Core v32 rejects out-of-range options instead of
+                    // clamping them, e.g. a reserved weight above the node's
+                    // -blockmaxweight. A lost node connection also ends up here.
+                    // Break rather than rethrow, so the failure is logged once.
+                    LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Could not create a template for client id=%zu, disconnecting: %s\n",
+                                  client_id, e.what());
+                    disconnect_client();
+                    break;
+                }
                 if (!block_template) {
                     LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "No new template for client id=%zu, node is shutting down\n",
                         client_id);
@@ -504,9 +525,12 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
             }
         }
     } catch (const std::exception& e) {
-        LogPrintLevel(BCLog::SV2, BCLog::Level::Trace,
-                      "Client thread for id=%zu exiting after exception: %s\n",
+        // Usually the node connection was lost, which the main thread notices
+        // and handles, so log at Debug only.
+        LogPrintLevel(BCLog::SV2, BCLog::Level::Debug,
+                      "Client thread for id=%zu exiting after exception, disconnecting: %s\n",
                       client_id, e.what());
+        disconnect_client();
     }
 }
 

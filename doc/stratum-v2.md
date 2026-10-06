@@ -64,8 +64,10 @@ When a Job Declarator client connects to us, it first sends a  `SetupConnection`
 message. We reply with `SetupConnection.Success` unless something went wrong,
 e.g. version mismatch, in which case we reply with `SetupConnection.Error`.
 
-Next the client sends us their `CoinbaseOutputConstraints`. If this is invalid
-we disconnect. Otherwise we start the cycle below that repeats with every block.
+Next the client sends us their `CoinbaseOutputConstraints`. If this is invalid,
+or Bitcoin Core rejects the resulting block options (e.g. a reserved weight
+above its `-blockmaxweight`), we disconnect. Otherwise we start the cycle below
+that repeats with every block.
 
 We send a `NewTemplate` message with `future_template` set `true`, immedidately
 followed by `SetNewPrevHash`. We _don't_ send any transaction information

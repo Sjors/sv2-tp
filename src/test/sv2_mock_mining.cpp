@@ -109,7 +109,7 @@ std::unique_ptr<interfaces::BlockTemplate> MockBlockTemplate::waitNext(node::Blo
     const uint64_t observed_interrupt_generation{state->wait_interrupt_generation};
     while (true) {
         auto predicate = [&] {
-            return state->shutdown ||
+            return state->shutdown || state->fail_wait_next ||
                    state->wait_interrupt_generation != observed_interrupt_generation ||
                    state->chain.prev_hash != block.hashPrevBlock ||
                    !state->events.empty();
@@ -119,6 +119,9 @@ std::unique_ptr<interfaces::BlockTemplate> MockBlockTemplate::waitNext(node::Blo
         }
         if (state->shutdown) {
             return nullptr;
+        }
+        if (state->fail_wait_next) {
+            throw std::runtime_error("waitNext failed");
         }
         if (state->wait_interrupt_generation != observed_interrupt_generation) {
             return nullptr;
@@ -208,6 +211,13 @@ std::vector<uint64_t> MockMining::GetCreateWeights()
 {
     LOCK(state->m);
     return state->create_weights;
+}
+
+void MockMining::FailWaitNext()
+{
+    LOCK(state->m);
+    state->fail_wait_next = true;
+    state->cv.notify_all();
 }
 
 bool MockMining::WaitForTemplateSeq(uint64_t target, std::chrono::milliseconds timeout)
