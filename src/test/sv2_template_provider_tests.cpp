@@ -498,8 +498,28 @@ static bool WaitForNoConnectedClients(TPTester& tester)
     return false;
 }
 
+// Bitcoin Core v32 accepts a block_reserved_weight of up to MAX_BLOCK_WEIGHT.
+BOOST_AUTO_TEST_CASE(coinbase_constraints_that_fit_in_a_block)
+{
+    TPTester tester{};
+    {
+        LOCK(tester.m_state->m);
+        tester.m_state->max_reserved_weight = MAX_BLOCK_WEIGHT;
+    }
+    tester.handshake();
+    tester.SendSetupConnection();
+    tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/999'608);
+    tester.ReceiveTemplatePair();
+    BOOST_CHECK_EQUAL(tester.m_tp->ConnectedClientCount(), 1U);
+    const auto weights{tester.m_mining_control->GetCreateWeights()};
+    BOOST_REQUIRE(!weights.empty());
+    BOOST_CHECK_EQUAL(weights.front(), MAX_BLOCK_WEIGHT);
+    tester.m_mining_control->Shutdown();
+}
+
 // A client whose CoinbaseOutputConstraints are rejected is disconnected
-// without a template ever being built for it.
+// without a template ever being built for it. One byte more than above needs
+// more weight than fits in a block, which Bitcoin Core v32 rejects.
 BOOST_AUTO_TEST_CASE(coinbase_constraints_beyond_block_weight_disconnects)
 {
     TPTester tester{};
@@ -507,8 +527,7 @@ BOOST_AUTO_TEST_CASE(coinbase_constraints_beyond_block_weight_disconnects)
     tester.SendSetupConnection();
     BOOST_REQUIRE_EQUAL(tester.m_tp->ConnectedClientCount(), 1U);
 
-    // 4'000'001 bytes can never fit in a block.
-    tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/4'000'001);
+    tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/999'609);
     BOOST_CHECK(WaitForNoConnectedClients(tester));
     BOOST_CHECK(tester.m_mining_control->GetCreateWeights().empty());
 }

@@ -8,6 +8,7 @@
 #include <cassert>
 #include <logging.h>
 #include <sv2/messages.h>
+#include <tinyformat.h>
 
 #include <stdexcept>
 
@@ -179,6 +180,10 @@ std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node
 {
     LOCK(state->m);
     state->create_weights.push_back(options.block_reserved_weight);
+    if (state->max_reserved_weight && options.block_reserved_weight > state->max_reserved_weight) {
+        throw std::runtime_error(strprintf("block_reserved_weight (%d) exceeds block_max_weight (%d)",
+                                           options.block_reserved_weight, state->max_reserved_weight));
+    }
     uint64_t seq = ++state->chain.template_seq;
     return std::make_unique<MockBlockTemplate>(state, state->chain.prev_hash, state->txs, seq, state->chain.pending_fee_sum);
 }

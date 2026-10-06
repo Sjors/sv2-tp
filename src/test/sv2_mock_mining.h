@@ -50,7 +50,10 @@ struct MockState {
     //! throw because the mock node does not have the method.
     std::atomic<int> submit_solution_calls{0};
     std::atomic<int> submit_solution_old7_calls{0};
-    //! block_reserved_weight of every createNewBlock() call.
+    //! When non-zero, createNewBlock() throws if block_reserved_weight exceeds
+    //! it, like Bitcoin Core v32 does for a node's -blockmaxweight.
+    uint64_t max_reserved_weight GUARDED_BY(m){0};
+    //! block_reserved_weight of every createNewBlock() call, including ones that throw.
     std::vector<uint64_t> create_weights GUARDED_BY(m);
     ChainState chain;                // grouped chain data
     std::vector<CTransactionRef> txs; // non-coinbase transactions included in templates

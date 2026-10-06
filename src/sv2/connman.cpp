@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <sv2/connman.h>
+#include <sv2/block_options.h>
 #include <sv2/messages.h>
 #include <logging.h>
 #include <sync.h>
@@ -375,9 +376,13 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
         uint32_t max_additional_size = coinbase_output_constraints.m_coinbase_output_max_additional_size;
         LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "coinbase_output_max_additional_size=%d bytes\n", max_additional_size);
 
-        if (max_additional_size > MAX_BLOCK_WEIGHT) {
-            LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Received impossible CoinbaseOutputConstraints from client id=%zu: %d\n",
-                          client.m_id, max_additional_size);
+        // Bitcoin Core v32 rejects a reserved weight that can't fit in a block,
+        // rather than clamping it. The node's own -blockmaxweight can't be
+        // queried, so only the consensus limit is checked here.
+        const uint64_t reserved_weight{node::ReservedWeightForCoinbaseOutputs(max_additional_size)};
+        if (reserved_weight > MAX_BLOCK_WEIGHT) {
+            LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Received impossible CoinbaseOutputConstraints from client id=%zu: %d bytes need %d weight units, more than MAX_BLOCK_WEIGHT (%d)\n",
+                          client.m_id, max_additional_size, reserved_weight, MAX_BLOCK_WEIGHT);
 
             LOCK(client.cs_status);
             client.m_disconnect_flag = true;
