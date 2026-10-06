@@ -305,19 +305,11 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 if (!client) return false;
                 LOCK(client->cs_status);
 
-                // https://stratumprotocol.org/specification/07-Template-Distribution-Protocol#72-coinbaseoutputconstraints-client-server
-                // Weight units reserved for block header, transaction count,
-                // and various fixed and variable coinbase fields.
-                const size_t block_reserved_floor{1168};
-                // Reserve a little more so that if the above calculation is
-                // wrong or there's an implementation error, we don't produce
-                // an invalid block when the template is completely full.
-                const size_t block_reserved_padding{400};
-
                 // Bitcoin Core enforces a minimum block reserved weight of 2000.
-                options.block_reserved_weight = std::max(
+                // Connman limits the size, so the weight fits in size_t.
+                options.block_reserved_weight = static_cast<size_t>(std::max<uint64_t>(
                     node::MIN_BLOCK_RESERVED_WEIGHT,
-                    block_reserved_floor + block_reserved_padding + client->m_coinbase_tx_outputs_size * 4);
+                    node::ReservedWeightForCoinbaseOutputs(client->m_coinbase_tx_outputs_size)));
             }
             return true;
         };

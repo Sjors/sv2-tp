@@ -1,4 +1,5 @@
 #include <boost/test/unit_test.hpp>
+#include <consensus/consensus.h>
 #include <interfaces/init.h>
 #include <interfaces/mining.h>
 #include <ipc/exception.h>
@@ -20,6 +21,7 @@
 #include <algorithm>
 #include <exception>
 #include <future>
+#include <limits>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -40,6 +42,10 @@ BOOST_AUTO_TEST_CASE(block_reserved_weight_floor)
     options.block_reserved_weight = std::max(node::MIN_BLOCK_RESERVED_WEIGHT, options.block_reserved_weight);
     BOOST_REQUIRE_EQUAL(options.block_reserved_weight, node::MIN_BLOCK_RESERVED_WEIGHT);
 }
+
+// The largest coinbase output size whose reserved weight still fits in a block.
+static_assert(node::ReservedWeightForCoinbaseOutputs(999'608) == MAX_BLOCK_WEIGHT);
+static_assert(node::ReservedWeightForCoinbaseOutputs(std::numeric_limits<uint32_t>::max()) > MAX_BLOCK_WEIGHT);
 
 BOOST_AUTO_TEST_CASE(multiple_template_pair_trigger)
 {
