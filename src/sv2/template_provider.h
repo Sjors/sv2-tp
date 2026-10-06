@@ -197,6 +197,13 @@ public:
     /* Block templates that connected clients may be working on */
     BlockTemplateCache& GetBlockTemplates() EXCLUSIVE_LOCKS_REQUIRED(m_tp_mutex) { return m_block_template_cache; }
 
+    /** Number of clients not flagged for disconnection, used for tests. */
+    size_t ConnectedClientCount()
+    {
+        LOCK(m_connman->m_clients_mutex);
+        return m_connman->ConnectedClients();
+    }
+
 private:
 
     /* Forget templates from before the last block, but with a few seconds margin. */

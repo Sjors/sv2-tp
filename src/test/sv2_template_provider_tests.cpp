@@ -482,4 +482,29 @@ BOOST_AUTO_TEST_CASE(submit_solution_without_template)
     BOOST_REQUIRE(logs.WaitFor("Template with id=2 is no longer in cache"));
 }
 
+//! Wait until the template provider has flagged every client for disconnection.
+static bool WaitForNoConnectedClients(TPTester& tester)
+{
+    for (int i = 0; i < 300; ++i) {
+        if (tester.m_tp->ConnectedClientCount() == 0) return true;
+        UninterruptibleSleep(std::chrono::milliseconds{10});
+    }
+    return false;
+}
+
+// A client whose CoinbaseOutputConstraints are rejected is disconnected
+// without a template ever being built for it.
+BOOST_AUTO_TEST_CASE(coinbase_constraints_beyond_block_weight_disconnects)
+{
+    TPTester tester{};
+    tester.handshake();
+    tester.SendSetupConnection();
+    BOOST_REQUIRE_EQUAL(tester.m_tp->ConnectedClientCount(), 1U);
+
+    // 4'000'001 bytes can never fit in a block.
+    tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/4'000'001);
+    BOOST_CHECK(WaitForNoConnectedClients(tester));
+    BOOST_CHECK(tester.m_mining_control->GetCreateWeights().empty());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -285,11 +285,12 @@ void TPTester::SendSetupConnection(size_t peer_id)
     BOOST_REQUIRE_EQUAL(PeerReceiveBytes(peer_id), SV2_HEADER_ENCRYPTED_SIZE + 6 + Poly1305::TAGLEN);
 }
 
-void TPTester::SendCoinbaseOutputConstraints(size_t peer_id)
+void TPTester::SendCoinbaseOutputConstraints(size_t peer_id, uint32_t max_additional_size)
 {
     std::vector<uint8_t> coinbase_output_constraint_bytes{
-        0x01, 0x00, 0x00, 0x00, // coinbase_output_max_additional_size
-        0x00, 0x00              // coinbase_output_max_sigops
+        uint8_t(max_additional_size), uint8_t(max_additional_size >> 8),
+        uint8_t(max_additional_size >> 16), uint8_t(max_additional_size >> 24), // coinbase_output_max_additional_size
+        0x00, 0x00                                                                // coinbase_output_max_sigops
     };
     node::Sv2NetMsg coc_msg{node::Sv2MsgType::COINBASE_OUTPUT_CONSTRAINTS, std::move(coinbase_output_constraint_bytes)};
     receiveMessage(coc_msg, peer_id);

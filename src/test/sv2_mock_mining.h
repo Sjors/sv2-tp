@@ -50,6 +50,8 @@ struct MockState {
     //! throw because the mock node does not have the method.
     std::atomic<int> submit_solution_calls{0};
     std::atomic<int> submit_solution_old7_calls{0};
+    //! block_reserved_weight of every createNewBlock() call.
+    std::vector<uint64_t> create_weights GUARDED_BY(m);
     ChainState chain;                // grouped chain data
     std::vector<CTransactionRef> txs; // non-coinbase transactions included in templates
     std::queue<MockEvent> events;    // queued events driving waitNext()
@@ -104,6 +106,7 @@ public:
     // Accessors for tests (thread-safe)
     uint64_t GetTemplateSeq();
     uint64_t GetHeight();
+    std::vector<uint64_t> GetCreateWeights();
 
     // Test control helpers
     void TriggerFeeIncrease(std::vector<CTransactionRef> txs);

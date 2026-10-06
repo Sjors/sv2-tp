@@ -256,7 +256,7 @@ void Sv2TemplateProvider::ThreadSv2Handler()
         // We start with one template per client, which has an interface through
         // which we monitor for better templates.
 
-        m_connman->ForEachClient([this, &client_threads](Sv2Client& client) {
+        m_connman->ForEachClient([this, &client_threads](Sv2Client& client) EXCLUSIVE_LOCKS_REQUIRED(client.cs_status) {
             /**
              * The initial handshake is handled on the Sv2Connman thread. This
              * consists of the noise protocol handshake and the initial Stratum
@@ -303,6 +303,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 LOCK(m_connman->m_clients_mutex);
                 std::shared_ptr client = m_connman->GetClientById(client_id);
                 if (!client) return false;
+                LOCK(client->cs_status);
 
                 // https://stratumprotocol.org/specification/07-Template-Distribution-Protocol#72-coinbaseoutputconstraints-client-server
                 // Weight units reserved for block header, transaction count,

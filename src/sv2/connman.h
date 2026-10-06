@@ -44,14 +44,14 @@ struct Sv2Client
     std::deque<Sv2NetMsg> m_send_messages GUARDED_BY(cs_send);
 
     /**
-     * Whether the client has received CoinbaseOutputConstraints message.
+     * Whether the client has sent a valid CoinbaseOutputConstraints message.
      */
-    bool m_coinbase_output_constraints_recv = false;
+    bool m_coinbase_output_constraints_recv GUARDED_BY(cs_status){false};
 
     /**
      * Specific additional coinbase tx output size required for the client.
      */
-    unsigned int m_coinbase_tx_outputs_size;
+    unsigned int m_coinbase_tx_outputs_size GUARDED_BY(cs_status){0};
 
     /**
      * Tracks the best template in the Template Provider m_block_template_cache map.

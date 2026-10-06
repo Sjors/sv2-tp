@@ -190,4 +190,38 @@ BOOST_AUTO_TEST_CASE(setup_connection_validation)
                 /*expected_flags=*/0x80000001, "unsupported-feature-flags");
 }
 
+// Only CoinbaseOutputConstraints that pass validation make a client ready for
+// templates. Otherwise the template provider could start a handler thread for
+// a client that is about to be disconnected.
+BOOST_AUTO_TEST_CASE(coinbase_output_constraints_set_after_validation)
+{
+    ConnTester tester{};
+    Sv2Client accepted{/*id=*/100, /*transport=*/nullptr};
+    Sv2Client rejected{/*id=*/101, /*transport=*/nullptr};
+    for (Sv2Client* client : {&accepted, &rejected}) {
+        LOCK(client->cs_status);
+        client->m_setup_connection_confirmed = true;
+    }
+
+    // 4'000'001 bytes can never fit in a block.
+    node::Sv2NetMsg too_large{node::Sv2MsgType::COINBASE_OUTPUT_CONSTRAINTS, {0x01, 0x09, 0x3d, 0x00, 0x00, 0x00}};
+    tester.m_connman->ProcessSv2Message(too_large, rejected);
+    {
+        LOCK(rejected.cs_status);
+        BOOST_CHECK(rejected.m_disconnect_flag);
+        BOOST_CHECK(!rejected.m_coinbase_output_constraints_recv);
+    }
+    BOOST_CHECK_EQUAL(rejected.m_coinbase_constraints_generation.load(), 0U);
+
+    node::Sv2NetMsg constraints{node::Sv2MsgType::COINBASE_OUTPUT_CONSTRAINTS, {0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    tester.m_connman->ProcessSv2Message(constraints, accepted);
+    {
+        LOCK(accepted.cs_status);
+        BOOST_CHECK(!accepted.m_disconnect_flag);
+        BOOST_CHECK(accepted.m_coinbase_output_constraints_recv);
+        BOOST_CHECK_EQUAL(accepted.m_coinbase_tx_outputs_size, 1U);
+    }
+    BOOST_CHECK_EQUAL(accepted.m_coinbase_constraints_generation.load(), 1U);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -175,9 +175,10 @@ std::optional<interfaces::BlockRef> MockMining::getTip()
     return std::nullopt;
 }
 std::optional<interfaces::BlockRef> MockMining::waitTipChanged(uint256, MillisecondsDouble) { return std::nullopt; }
-std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node::BlockCreateOptions&, bool)
+std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node::BlockCreateOptions& options, bool)
 {
     LOCK(state->m);
+    state->create_weights.push_back(options.block_reserved_weight);
     uint64_t seq = ++state->chain.template_seq;
     return std::make_unique<MockBlockTemplate>(state, state->chain.prev_hash, state->txs, seq, state->chain.pending_fee_sum);
 }
@@ -196,6 +197,12 @@ uint64_t MockMining::GetHeight()
 {
     LOCK(state->m);
     return state->chain.height;
+}
+
+std::vector<uint64_t> MockMining::GetCreateWeights()
+{
+    LOCK(state->m);
+    return state->create_weights;
 }
 
 bool MockMining::WaitForTemplateSeq(uint64_t target, std::chrono::milliseconds timeout)

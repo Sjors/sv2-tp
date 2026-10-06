@@ -363,7 +363,6 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
         node::Sv2CoinbaseOutputConstraintsMsg coinbase_output_constraints;
         try {
             ss >> coinbase_output_constraints;
-            client.m_coinbase_output_constraints_recv = true;
         } catch (const std::exception& e) {
             LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Received invalid CoinbaseOutputConstraints message from client id=%zu: %s\n",
                           client.m_id, e.what());
@@ -385,14 +384,15 @@ void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& clie
             return;
         }
 
-        // Bump constraints generation and interrupt the client handler thread's
-        // waitNext() call so it immediately rebuilds the template with the new
-        // constraints.
-        client.m_coinbase_tx_outputs_size = coinbase_output_constraints.m_coinbase_output_max_additional_size;
-        client.m_coinbase_constraints_generation++;
-
+        // Store the new size, bump constraints generation and interrupt the
+        // client handler thread's waitNext() call so it immediately rebuilds
+        // the template with the new constraints. Only a validated size marks
+        // the client as ready for templates.
         {
             LOCK(client.cs_status);
+            client.m_coinbase_tx_outputs_size = max_additional_size;
+            client.m_coinbase_constraints_generation++;
+            client.m_coinbase_output_constraints_recv = true;
             if (client.m_current_block_template != nullptr) {
                 client.m_current_block_template->interruptWait();
             }
