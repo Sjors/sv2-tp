@@ -297,8 +297,8 @@ BOOST_AUTO_TEST_CASE(submit_solution_interface_version)
         node::Sv2SubmitSolutionMsg solution;
         solution.m_template_id = 1;
         solution.m_version = 1;
-        solution.m_header_timestamp = 0;
-        solution.m_header_nonce = 0;
+        solution.m_ntime = 0;
+        solution.m_nonce = 0;
         solution.m_coinbase_tx = CMutableTransaction{*MakeDummyTx()};
 
         tester.m_tp->SubmitSolution(solution);

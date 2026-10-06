@@ -286,8 +286,8 @@ BOOST_AUTO_TEST_CASE(Sv2SubmitSolution_test)
     uint8_t input[]{
         0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   // template_id
         0x02, 0x00, 0x00, 0x00,                           // version
-        0x97, 0x3c, 0x0e, 0x63,                           // header_timestamp
-        0xff, 0xff, 0x7f, 0x03,                           // header_nonce
+        0x97, 0x3c, 0x0e, 0x63,                           // ntime
+        0xff, 0xff, 0x7f, 0x03,                           // nonce
         0x5d, 0x00,                                       // 2 byte length of coinbase_tx
         0x2, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, // coinbase_tx
         0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
@@ -306,9 +306,9 @@ BOOST_AUTO_TEST_CASE(Sv2SubmitSolution_test)
     node::Sv2SubmitSolutionMsg submit_solution;
     ss >> submit_solution;
 
-    // BOOST_CHECK_EQUAL(submit_solution.m_template_id, 2);
-    // BOOST_CHECK_EQUAL(submit_solution.m_version, 2);
-    // BOOST_CHECK_EQUAL(submit_solution.m_header_timestamp, 1661877399);
-    // BOOST_CHECK_EQUAL(submit_solution.m_header_nonce, 58720255);
+    BOOST_CHECK_EQUAL(submit_solution.m_template_id, 2);
+    BOOST_CHECK_EQUAL(submit_solution.m_version, 2);
+    BOOST_CHECK_EQUAL(submit_solution.m_ntime, 1661877399);
+    BOOST_CHECK_EQUAL(submit_solution.m_nonce, 58720255);
 }
 BOOST_AUTO_TEST_SUITE_END()

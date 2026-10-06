@@ -198,8 +198,8 @@ FUZZ_TARGET(sv2_submit_solution, .init = Sv2FuzzInitialize)
     DataStream ss{};
     ss << provider.ConsumeIntegral<uint64_t>(); // m_template_id
     ss << provider.ConsumeIntegral<uint32_t>(); // m_version
-    ss << provider.ConsumeIntegral<uint32_t>(); // m_header_timestamp
-    ss << provider.ConsumeIntegral<uint32_t>(); // m_header_nonce
+    ss << provider.ConsumeIntegral<uint32_t>(); // m_ntime
+    ss << provider.ConsumeIntegral<uint32_t>(); // m_nonce
 
     // Fuzzed coinbase transaction bytes (with 2-byte length prefix)
     size_t tx_len = provider.ConsumeIntegralInRange<size_t>(0, 10000);
@@ -214,8 +214,8 @@ FUZZ_TARGET(sv2_submit_solution, .init = Sv2FuzzInitialize)
         // If parsing succeeded, verify fields
         (void)msg.m_template_id;
         (void)msg.m_version;
-        (void)msg.m_header_timestamp;
-        (void)msg.m_header_nonce;
+        (void)msg.m_ntime;
+        (void)msg.m_nonce;
         (void)msg.m_coinbase_tx;
     } catch (const std::ios_base::failure&) {
         // Stream read failures are expected for malformed transactions

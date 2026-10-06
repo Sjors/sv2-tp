@@ -572,8 +572,8 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
         LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "id=%lu version=%d, timestamp=%d, nonce=%d\n",
             solution.m_template_id,
             solution.m_version,
-            solution.m_header_timestamp,
-            solution.m_header_nonce
+            solution.m_ntime,
+            solution.m_nonce
         );
 
         std::shared_ptr<BlockTemplate> block_template;
@@ -616,13 +616,13 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
 
         if (m_node_version < NODE_VERSION_32_00) {
             submitted = block_template->submitSolutionOld7(solution.m_version,
-                                                           solution.m_header_timestamp,
-                                                           solution.m_header_nonce,
+                                                           solution.m_ntime,
+                                                           solution.m_nonce,
                                                            coinbase_tx);
         } else {
             submitted = block_template->submitSolution(solution.m_version,
-                                                       solution.m_header_timestamp,
-                                                       solution.m_header_nonce,
+                                                       solution.m_ntime,
+                                                       solution.m_nonce,
                                                        coinbase_tx,
                                                        reason,
                                                        debug);

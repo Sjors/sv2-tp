@@ -559,16 +559,16 @@ struct Sv2SubmitSolutionMsg
 
     /**
      * The nTime field in the block header. This MUST be greater than or equal to
-     * the ntime_start field in the latest SetNewPrevHash message and lower
-     * than or equal to that value plus the number of seconds since the receipt
-     * of that message.
+     * the ntime_start field in the latest SetNewPrevHash message. No protocol-level
+     * upper bound is imposed; network rules reject a block header nTime too far
+     * in the future.
      */
-    uint32_t m_header_timestamp;
+    uint32_t m_ntime;
 
     /**
      * The nonce field in the header.
      */
-    uint32_t m_header_nonce;
+    uint32_t m_nonce;
 
     /**
      * The full serialized coinbase transaction, meeting all the requirements of the NewWork message, above.
@@ -580,7 +580,7 @@ struct Sv2SubmitSolutionMsg
     template <typename Stream>
     void Unserialize(Stream& s)
     {
-        s >> m_template_id >> m_version >> m_header_timestamp >> m_header_nonce;
+        s >> m_template_id >> m_version >> m_ntime >> m_nonce;
 
         // Ignore the 2 byte length as the rest of the stream is assumed to be
         // the m_coinbase_tx.
