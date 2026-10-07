@@ -55,6 +55,8 @@ struct MockState {
     uint64_t max_reserved_weight GUARDED_BY(m){0};
     //! block_reserved_weight of every createNewBlock() call, including ones that throw.
     std::vector<uint64_t> create_weights GUARDED_BY(m);
+    //! Pause createNewBlock() after recording its options, until resumed or shut down.
+    bool pause_create GUARDED_BY(m){false};
     //! Make waitNext() throw, e.g. to simulate a failed IPC call. Protected by
     //! m, but not GUARDED_BY(m) because waitNext() waits on a std::unique_lock,
     //! like for shutdown below.
@@ -114,6 +116,10 @@ public:
     uint64_t GetTemplateSeq();
     uint64_t GetHeight();
     std::vector<uint64_t> GetCreateWeights();
+    //! Pause or resume createNewBlock() after it records the requested options.
+    void PauseCreate(bool pause);
+    //! Wait for direct createNewBlock() calls, including paused or rejected calls.
+    bool WaitForCreateCalls(size_t count, std::chrono::milliseconds timeout = std::chrono::milliseconds{2000});
     //! Make every current and future waitNext() call throw.
     void FailWaitNext();
 

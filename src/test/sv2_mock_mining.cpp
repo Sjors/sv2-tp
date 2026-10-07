@@ -181,8 +181,16 @@ std::optional<interfaces::BlockRef> MockMining::getTip()
 std::optional<interfaces::BlockRef> MockMining::waitTipChanged(uint256, MillisecondsDouble) { return std::nullopt; }
 std::unique_ptr<interfaces::BlockTemplate> MockMining::createNewBlock(const node::BlockCreateOptions& options, bool)
 {
-    LOCK(state->m);
+    WAIT_LOCK(state->m, lock);
     state->create_weights.push_back(options.block_reserved_weight);
+    state->cv.notify_all();
+    // Bound the pause so a failing test can't leave fixture teardown waiting forever.
+    if (!state->cv.wait_for(lock, std::chrono::seconds{5}, [&]() EXCLUSIVE_LOCKS_REQUIRED(state->m) {
+            return state->shutdown || !state->pause_create;
+        })) {
+        throw std::runtime_error("createNewBlock pause timed out");
+    }
+    if (state->shutdown) return nullptr;
     if (state->max_reserved_weight && options.block_reserved_weight > state->max_reserved_weight) {
         throw std::runtime_error(strprintf("block_reserved_weight (%d) exceeds block_max_weight (%d)",
                                            options.block_reserved_weight, state->max_reserved_weight));
@@ -211,6 +219,21 @@ std::vector<uint64_t> MockMining::GetCreateWeights()
 {
     LOCK(state->m);
     return state->create_weights;
+}
+
+void MockMining::PauseCreate(bool pause)
+{
+    LOCK(state->m);
+    state->pause_create = pause;
+    state->cv.notify_all();
+}
+
+bool MockMining::WaitForCreateCalls(size_t count, std::chrono::milliseconds timeout)
+{
+    WAIT_LOCK(state->m, lock);
+    return state->cv.wait_for(lock, timeout, [&]() EXCLUSIVE_LOCKS_REQUIRED(state->m) {
+        return state->shutdown || state->create_weights.size() >= count;
+    }) && !state->shutdown && state->create_weights.size() >= count;
 }
 
 void MockMining::FailWaitNext()

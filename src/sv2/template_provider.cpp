@@ -308,7 +308,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
     try {
         Timer timer(m_options.template_interval);
 
-        const auto prepare_block_create_options = [this, client_id](node::BlockCreateOptions& options) -> bool {
+        const auto prepare_block_create_options = [this, client_id](node::BlockCreateOptions& options, uint64_t& constraints_generation) -> bool {
             {
                 LOCK(m_connman->m_clients_mutex);
                 std::shared_ptr client = m_connman->GetClientById(client_id);
@@ -320,6 +320,8 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 options.block_reserved_weight = static_cast<size_t>(std::max<uint64_t>(
                     node::MIN_BLOCK_RESERVED_WEIGHT,
                     node::ReservedWeightForCoinbaseOutputs(client->m_coinbase_tx_outputs_size)));
+                // Snapshot the generation with the size, before the IPC call.
+                constraints_generation = client->m_coinbase_constraints_generation.load();
             }
             return true;
         };
@@ -342,7 +344,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 }
 
                 node::BlockCreateOptions block_create_options{.use_mempool = true};
-                if (!prepare_block_create_options(block_create_options)) break;
+                if (!prepare_block_create_options(block_create_options, constraints_generation_at_build)) break;
 
                 const auto time_start{SteadyClock::now()};
                 try {
@@ -363,13 +365,20 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                     break;
                 }
 
+                bool stale{false};
                 {
                     LOCK(m_connman->m_clients_mutex);
                     std::shared_ptr client = m_connman->GetClientById(client_id);
                     if (!client) break;
                     LOCK(client->cs_status);
-                    client->m_current_block_template = block_template;
-                    constraints_generation_at_build = client->m_coinbase_constraints_generation.load();
+                    // New constraints may have been processed since we requested this template.
+                    stale = client->m_coinbase_constraints_generation.load() != constraints_generation_at_build;
+                    if (!stale) client->m_current_block_template = block_template;
+                }
+                if (stale) {
+                    // Releasing the template can make an IPC call; drop the locks first.
+                    block_template.reset();
+                    continue;
                 }
 
                 LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "Assemble template: %.2fms\n",
