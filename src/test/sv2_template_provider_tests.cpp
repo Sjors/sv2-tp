@@ -54,15 +54,26 @@ BOOST_AUTO_TEST_CASE(multiple_template_pair_trigger)
     tester.handshake();
     tester.SendSetupConnection();
 
-    // Send initial SendCoinbaseOutputConstraints to receive the first TemplatePair
+    // No template is cached until the initial creation returns.
+    tester.m_mining_control->PauseCreate(true);
     tester.SendCoinbaseOutputConstraints();
+    BOOST_REQUIRE(tester.m_mining_control->WaitForCreateCalls(1));
+    BOOST_CHECK_EQUAL(tester.GetBlockTemplateCount(), 0);
+    tester.m_mining_control->PauseCreate(false);
     tester.ReceiveTemplatePair();
 
     BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext());
 
-    // Send another SendCoinbaseOutputConstraints to receive second ReceiveTemplatePair
+    // Repeating the constraints triggers a second creation, while the first
+    // template remains cached until the new one is ready.
+    tester.m_mining_control->PauseCreate(true);
     tester.SendCoinbaseOutputConstraints();
+    BOOST_REQUIRE(tester.m_mining_control->WaitForCreateCalls(2));
+    BOOST_CHECK_EQUAL(tester.GetBlockTemplateCount(), 1);
+    tester.m_mining_control->PauseCreate(false);
     tester.ReceiveTemplatePair();
+    BOOST_CHECK_EQUAL(tester.GetBlockTemplateCount(), 2);
+    tester.m_mining_control->Shutdown();
 }
 
 BOOST_AUTO_TEST_CASE(client_tests)
