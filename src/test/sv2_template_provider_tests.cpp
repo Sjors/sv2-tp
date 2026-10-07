@@ -603,4 +603,48 @@ BOOST_AUTO_TEST_CASE(updated_constraints_beyond_node_limit_disconnect)
     BOOST_CHECK_EQUAL(weights.back(), uint64_t{121'568});
 }
 
+// A constraints update during createNewBlock() must invalidate the result,
+// rather than label it with the newer generation and send undersized work.
+BOOST_AUTO_TEST_CASE(constraints_changed_during_template_creation)
+{
+    for (const bool regenerate : {false, true}) {
+        BOOST_TEST_CONTEXT("regenerate=" << regenerate) {
+            TPTester tester{};
+            tester.handshake();
+            tester.SendSetupConnection();
+            size_t create_calls{0};
+            if (regenerate) {
+                tester.SendCoinbaseOutputConstraints();
+                tester.ReceiveTemplatePair();
+                BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext(1));
+                create_calls = 1;
+            }
+
+            tester.m_mining_control->PauseCreate(true);
+            tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/1);
+            BOOST_REQUIRE(tester.m_mining_control->WaitForCreateCalls(create_calls + 1));
+            tester.SendCoinbaseOutputConstraints(/*peer_id=*/0, /*max_additional_size=*/30'000);
+
+            // A response to a subsequent message on the same connection confirms
+            // that the updated constraints were stored before creation resumes.
+            node::Sv2NetMsg request{node::Sv2MsgType::REQUEST_TRANSACTION_DATA, {0xe7, 0x03, 0, 0, 0, 0, 0, 0}};
+            tester.receiveMessage(request);
+            node::Sv2NetMsg response{node::Sv2MsgType::REQUEST_TRANSACTION_DATA_ERROR, {}};
+            tester.PeerReceiveBytes(0, &response);
+            BOOST_REQUIRE(response.m_msg_type == node::Sv2MsgType::REQUEST_TRANSACTION_DATA_ERROR);
+            tester.m_mining_control->PauseCreate(false);
+
+            // Only the rebuilt template should have been cached and sent.
+            tester.ReceiveTemplatePair();
+            BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext(1));
+            const auto weights{tester.m_mining_control->GetCreateWeights()};
+            BOOST_REQUIRE_EQUAL(weights.size(), create_calls + 2);
+            BOOST_CHECK_EQUAL(weights[create_calls], node::MIN_BLOCK_RESERVED_WEIGHT);
+            BOOST_CHECK_EQUAL(weights.back(), node::ReservedWeightForCoinbaseOutputs(30'000));
+            BOOST_CHECK_EQUAL(tester.GetBlockTemplateCount(), create_calls + 1);
+            tester.m_mining_control->Shutdown();
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
