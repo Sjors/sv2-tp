@@ -187,6 +187,14 @@ public:
      */
     void ProcessSv2Message(const node::Sv2NetMsg& sv2_header, Sv2Client& client) EXCLUSIVE_LOCKS_REQUIRED(!m_tp_mutex);
 
+    /**
+     * Set the interrupt flag without performing any IPC. TPTester uses this
+     * before shutting down the mock directly, so handlers do not issue further
+     * IPC calls during teardown. Later Interrupt() calls return immediately;
+     * pending mining waits must be unblocked separately.
+     */
+    void RequestInterrupt() noexcept { m_flag_interrupt_sv2 = true; }
+
     // Only used for tests
     XOnlyPubKey m_authority_pubkey;
 
