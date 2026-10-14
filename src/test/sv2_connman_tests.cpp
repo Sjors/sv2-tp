@@ -1,5 +1,6 @@
 #include <boost/test/unit_test.hpp>
 #include <sv2/messages.h>
+#include <sync.h>
 #include <test/sv2_connman_tester.h>
 #include <test/sv2_test_setup.h>
 
@@ -237,6 +238,34 @@ BOOST_AUTO_TEST_CASE(send_error_removes_client)
 
     BOOST_CHECK(tester.WaitForClientCount(0));
     BOOST_CHECK(tester.SendFailures() > 0);
+}
+
+// A failed send must not leave the client waiting for an unsendable queue to drain.
+BOOST_AUTO_TEST_CASE(send_error_removes_client_with_queued_messages)
+{
+    ConnTester tester{};
+    tester.handshake();
+    BOOST_REQUIRE_EQUAL(tester.ClientCount(), 1U);
+
+    {
+        LOCK(tester.m_connman->m_clients_mutex);
+        // The first connection accepted by this connman has ID 0.
+        auto client{tester.m_connman->GetClientById(/*node_id=*/0)};
+        BOOST_REQUIRE(client);
+        LOCK(client->cs_send);
+
+        // The first message moves into the transport before the send fails.
+        // Queue a second message so cleanup cannot rely on an empty queue.
+        const node::Sv2SetupConnectionSuccessMsg response{2, 0};
+        client->m_send_messages.emplace_back(response);
+        client->m_send_messages.emplace_back(response);
+        tester.FailSends();
+        tester.m_connman->TryOptimisticSend(*client);
+        BOOST_REQUIRE_EQUAL(tester.SendFailures(), 1);
+        BOOST_REQUIRE_EQUAL(client->m_send_messages.size(), 1U);
+    }
+
+    BOOST_CHECK(tester.WaitForClientCount(0));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
