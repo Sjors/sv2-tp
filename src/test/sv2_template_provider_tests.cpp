@@ -509,6 +509,16 @@ static bool WaitForNoConnectedClients(TPTester& tester)
     return false;
 }
 
+//! Wait until the template provider tracks exactly n client handler threads.
+static bool WaitForClientThreadCount(TPTester& tester, size_t n)
+{
+    for (int i = 0; i < 500; ++i) {
+        if (tester.m_tp->ClientThreadCount() == n) return true;
+        UninterruptibleSleep(std::chrono::milliseconds{10});
+    }
+    return false;
+}
+
 // Bitcoin Core v32 accepts a block_reserved_weight of up to MAX_BLOCK_WEIGHT.
 BOOST_AUTO_TEST_CASE(coinbase_constraints_that_fit_in_a_block)
 {
@@ -645,6 +655,41 @@ BOOST_AUTO_TEST_CASE(constraints_changed_during_template_creation)
             tester.m_mining_control->Shutdown();
         }
     }
+}
+
+// Handler threads of clients that disconnected are joined, rather than kept
+// until shutdown.
+BOOST_AUTO_TEST_CASE(client_threads_joined_after_disconnect)
+{
+    constexpr size_t NUM_CLIENTS{3};
+    TPTester tester{};
+    for (size_t peer_id = 0; peer_id < NUM_CLIENTS; ++peer_id) {
+        tester.handshake(peer_id);
+        tester.SendSetupConnection(peer_id);
+        tester.SendCoinbaseOutputConstraints(peer_id);
+        tester.ReceiveTemplatePair(peer_id);
+    }
+    BOOST_REQUIRE(tester.m_mining_control->WaitForWaitNext(NUM_CLIENTS));
+    BOOST_REQUIRE(WaitForClientThreadCount(tester, NUM_CLIENTS));
+
+    // Constraints that can't fit in a block disconnect each client.
+    for (size_t peer_id = 0; peer_id < NUM_CLIENTS; ++peer_id) {
+        tester.SendCoinbaseOutputConstraints(peer_id, /*max_additional_size=*/999'609);
+    }
+    BOOST_REQUIRE(WaitForNoConnectedClients(tester));
+    // Each handler notices its client is gone when waitNext() times out,
+    // after about a second in tests.
+    WaitForClientThreadCount(tester, 0);
+    BOOST_CHECK_EQUAL(tester.m_tp->ClientThreadCount(), 0U);
+
+    // A client that connects afterwards gets a handler thread of its own.
+    tester.handshake(NUM_CLIENTS);
+    tester.SendSetupConnection(NUM_CLIENTS);
+    tester.SendCoinbaseOutputConstraints(NUM_CLIENTS);
+    tester.ReceiveTemplatePair(NUM_CLIENTS);
+    WaitForClientThreadCount(tester, 1);
+    BOOST_CHECK_EQUAL(tester.m_tp->ClientThreadCount(), 1U);
+    tester.m_mining_control->Shutdown();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

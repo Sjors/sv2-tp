@@ -94,6 +94,7 @@ private:
     std::atomic<bool> m_flag_interrupt_sv2{false};
     CThreadInterrupt m_interrupt_sv2;
     std::atomic<bool> m_backend_connected{true};
+    std::atomic<size_t> m_client_thread_count{0};
 
     /**
      * The most recent template id. This is incremented on creating new template,
@@ -204,6 +205,9 @@ public:
 
     /* Block templates that connected clients may be working on */
     BlockTemplateCache& GetBlockTemplates() EXCLUSIVE_LOCKS_REQUIRED(m_tp_mutex) { return m_block_template_cache; }
+
+    /** Number of client handler threads not yet joined, used for tests. */
+    size_t ClientThreadCount() const { return m_client_thread_count; }
 
     /** Number of clients not flagged for disconnection, used for tests. */
     size_t ConnectedClientCount()

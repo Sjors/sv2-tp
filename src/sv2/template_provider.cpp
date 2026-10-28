@@ -250,7 +250,11 @@ void Sv2TemplateProvider::ThreadSv2Handler()
         std::this_thread::sleep_for(1000ms);
     }
 
-    std::map<size_t, std::thread> client_threads;
+    struct ClientThread {
+        std::thread thread;
+        std::atomic<bool> done{false};
+    };
+    std::map<size_t, ClientThread> client_threads;
 
     while (!m_flag_interrupt_sv2) {
         // We start with one template per client, which has an interface through
@@ -271,11 +275,28 @@ void Sv2TemplateProvider::ThreadSv2Handler()
 
             const size_t client_id{client.m_id};
 
-            client_threads.emplace(client_id,
-                                   std::thread(&util::TraceThread,
-                                               strprintf("sv2-%zu", client_id),
-                                               [this, client_id] { ThreadSv2ClientHandler(client_id); }));
+            auto& [_, entry] = *client_threads.try_emplace(client_id).first;
+            entry.thread = std::thread(&util::TraceThread,
+                                       strprintf("sv2-%zu", client_id),
+                                       [this, client_id, done = &entry.done] {
+                                           ThreadSv2ClientHandler(client_id);
+                                           *done = true;
+                                       });
         });
+
+        // Join finished threads once connman has removed their client. A handler
+        // notices its client is gone when waitNext() returns. A thread whose client
+        // is still there is kept, or ForEachClient would start a new one.
+        for (auto it = client_threads.begin(); it != client_threads.end();) {
+            if (it->second.done &&
+                !WITH_LOCK(m_connman->m_clients_mutex, return m_connman->GetClientById(it->first))) {
+                it->second.thread.join();
+                it = client_threads.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        m_client_thread_count = client_threads.size();
 
         // Take a break (handling new connections is not urgent)
         std::this_thread::sleep_for(100ms);
@@ -284,13 +305,14 @@ void Sv2TemplateProvider::ThreadSv2Handler()
         PruneBlockTemplateCache();
     }
 
-    for (auto& thread : client_threads) {
-        if (thread.second.joinable()) {
+    for (auto& entry : client_threads) {
+        if (entry.second.thread.joinable()) {
             // If the node is shutting down, then all pending waitNext() calls
             // should return in under a second.
-            thread.second.join();
+            entry.second.thread.join();
         }
     }
+    m_client_thread_count = 0;
 
 
 }
