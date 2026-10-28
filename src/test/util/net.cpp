@@ -221,6 +221,7 @@ bool DynSock::WaitMany(std::chrono::milliseconds timeout, EventsPerSock& events_
         // Check all sockets for readiness without waiting.
         for (auto& [sock, events] : events_per_sock) {
             if ((events.requested & Sock::SEND) != 0) {
+                ++reinterpret_cast<const DynSock*>(sock.get())->m_pipes->send_waits;
                 // Always ready for Send().
                 events.occurred |= Sock::SEND;
                 at_least_one_event_occurred = true;

@@ -158,6 +158,7 @@ public:
         Pipe send;
         std::atomic<bool> fail_send{false};
         std::atomic<int> send_failures{0};
+        std::atomic<int> send_waits{0}; //!< Number of times WaitMany() was asked for SEND readiness
     };
 
     /**

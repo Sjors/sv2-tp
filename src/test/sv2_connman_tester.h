@@ -39,6 +39,8 @@ public:
     /** Retrieve the message completed by LocalToRemoteBytes(). */
     Sv2NetMsg GetReceivedMessage();
     std::pair<Sv2NetMsg, size_t> LocalToRemoteMsg();
+    /** Create a new client connection without starting the handshake. */
+    void Connect();
     void handshake();
     void RemoteToLocalMsg(Sv2NetMsg& msg);
     bool IsConnected();
@@ -46,6 +48,8 @@ public:
     size_t ClientCount();
     void FailSends();
     int SendFailures();
+    int SendWaits();
+    void ResetSendWaits();
     Sv2NetMsg SetupConnectionMsg(uint8_t protocol = node::TEMPLATE_DISTRIBUTION_PROTOCOL,
                                  uint16_t min_version = 2,
                                  uint16_t max_version = 2,

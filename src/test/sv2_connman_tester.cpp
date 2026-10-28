@@ -69,8 +69,7 @@ std::pair<Sv2NetMsg, size_t> ConnTester::LocalToRemoteMsg()
     return {GetReceivedMessage(), bytes};
 }
 
-/* Create a new client and perform handshake */
-void ConnTester::handshake()
+void ConnTester::Connect()
 {
     m_remote_transport.reset();
 
@@ -81,6 +80,12 @@ void ConnTester::handshake()
     m_current_client_pipes = std::make_shared<DynSock::Pipes>();
     m_sv2connman_accepted_sockets->Push(
         std::make_unique<DynSock>(m_current_client_pipes, std::make_shared<DynSock::Queue>()));
+}
+
+/* Create a new client and perform handshake */
+void ConnTester::handshake()
+{
+    Connect();
 
     // Flush transport for handshake part 1
     RemoteToLocalBytes();
@@ -126,6 +131,10 @@ size_t ConnTester::ClientCount()
 void ConnTester::FailSends() { m_current_client_pipes->fail_send = true; }
 
 int ConnTester::SendFailures() { return m_current_client_pipes->send_failures; }
+
+int ConnTester::SendWaits() { return m_current_client_pipes->send_waits; }
+
+void ConnTester::ResetSendWaits() { m_current_client_pipes->send_waits = 0; }
 
 bool ConnTester::IsFullyConnected()
 {
