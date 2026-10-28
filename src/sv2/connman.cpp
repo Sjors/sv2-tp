@@ -30,9 +30,10 @@ Sv2Connman::~Sv2Connman()
     StopThreads();
 }
 
-bool Sv2Connman::Start(Sv2EventsInterface* msgproc, std::string host, uint16_t port)
+bool Sv2Connman::Start(Sv2EventsInterface* msgproc, std::string host, uint16_t port, size_t max_connections)
 {
     m_msgproc = msgproc;
+    m_max_connections = max_connections;
 
     if (!Bind(host, port)) return false;
 
@@ -108,6 +109,11 @@ bool Sv2Connman::EventNewConnectionAccepted(NodeId node_id,
 {
     Assume(m_certificate);
     LOCK(m_clients_mutex);
+    if (m_max_connections > 0 && m_sv2_clients.size() >= m_max_connections) {
+        LogDebug(BCLog::SV2, "Connection from %s rejected: maximum connection limit (%zu) reached\n",
+                 addr_.ToStringAddrPort(), m_max_connections);
+        return false;
+    }
     std::unique_ptr transport = std::make_unique<Sv2Transport>(m_static_key, m_certificate.value());
     auto client = std::make_shared<Sv2Client>(node_id, std::move(transport));
     LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "New client id=%zu connected\n", node_id);

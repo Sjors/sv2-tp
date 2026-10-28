@@ -31,7 +31,7 @@ public:
     std::atomic<size_t> m_submit_solution_count{0}; //!< Number of SubmitSolution messages forwarded to us
     std::atomic<size_t> m_request_transaction_data_count{0}; //!< Number of RequestTransactionData messages forwarded to us
 
-    ConnTester();
+    explicit ConnTester(size_t max_connections = DEFAULT_MAX_SV2_CONNECTIONS);
     ~ConnTester();
 
     void RemoteToLocalBytes();
