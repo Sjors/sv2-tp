@@ -23,6 +23,7 @@ target_link_libraries(test_sv2
 target_sources(test_sv2
 PRIVATE
   util/net.cpp
+  net_backport_tests.cpp
   sv2_test_setup.cpp
   sv2_connman_tester.cpp
   sv2_connman_tests.cpp
