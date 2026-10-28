@@ -261,7 +261,7 @@ SockMan::IOReadiness SockMan::GenerateWaitSockets()
     IOReadiness io_readiness;
 
     for (const auto& sock : m_listen) {
-        io_readiness.events_per_sock.emplace(sock, Sock::Events{Sock::RECV});
+        io_readiness.events_per_sock.emplace(sock, Sock::Events{Sock::RecvEvent});
     }
 
     auto connected_snapshot{WITH_LOCK(m_connected_mutex, return m_connected;)};
@@ -271,7 +271,7 @@ SockMan::IOReadiness SockMan::GenerateWaitSockets()
         const bool select_send{ShouldTryToSend(id)};
         if (!select_recv && !select_send) continue;
 
-        Sock::Event event = (select_send ? Sock::SEND : 0) | (select_recv ? Sock::RECV : 0);
+        Sock::Event event = (select_send ? Sock::SendEvent : 0) | (select_recv ? Sock::RecvEvent : 0);
         io_readiness.events_per_sock.emplace(sockets->sock, Sock::Events{event});
         io_readiness.ids_per_sock.emplace(sockets->sock, id);
     }
@@ -294,9 +294,9 @@ void SockMan::SocketHandlerConnected(const IOReadiness& io_readiness)
         }
         const Id id{it->second};
 
-        bool send_ready = events.occurred & Sock::SEND; // Sock::SEND could only be set if ShouldTryToSend() has returned true in GenerateWaitSockets().
-        bool recv_ready = events.occurred & Sock::RECV; // Sock::RECV could only be set if ShouldTryToRecv() has returned true in GenerateWaitSockets().
-        bool err_ready = events.occurred & Sock::ERR;
+        bool send_ready = events.occurred & Sock::SendEvent; // Sock::SendEvent could only be set if ShouldTryToSend() has returned true in GenerateWaitSockets().
+        bool recv_ready = events.occurred & Sock::RecvEvent; // Sock::RecvEvent could only be set if ShouldTryToRecv() has returned true in GenerateWaitSockets().
+        bool err_ready = events.occurred & Sock::ErrorEvent;
 
         if (send_ready) {
             bool cancel_recv;
@@ -345,7 +345,7 @@ void SockMan::SocketHandlerListening(const Sock::EventsPerSock& events_per_sock)
             return;
         }
         const auto it = events_per_sock.find(sock);
-        if (it != events_per_sock.end() && it->second.occurred & Sock::RECV) {
+        if (it != events_per_sock.end() && it->second.occurred & Sock::RecvEvent) {
             CService addr_accepted;
 
             auto sock_accepted{AcceptConnection(*sock, addr_accepted)};
