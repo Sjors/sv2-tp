@@ -20,8 +20,8 @@ jobs:
           - name: v31.1
             version: '31.1'
             ref: ''
-          - name: v32.0rc2
-            version: '32.0rc2'
+          - name: v32.1
+            version: '32.1'
             ref: ''
           - name: master
             version: ''
