@@ -185,6 +185,21 @@ void Sv2Connman::TryOptimisticSend(Sv2Client& client)
     SendMessagesAsBytes(client);
 }
 
+bool Sv2Connman::ShouldTryToSend(NodeId node_id) const
+{
+    AssertLockNotHeld(m_clients_mutex);
+
+    auto client{WITH_LOCK(m_clients_mutex, return GetClientById(node_id);)};
+    if (client == nullptr) return false;
+
+    LOCK(client->cs_send);
+    // Sending is possible if either there are bytes to send right now, or if
+    // there will be once a queued message is handed to the transport.
+    const auto& [to_send, more, _m_message_type] =
+        client->m_transport->GetBytesToSend(/*have_next_message=*/!client->m_send_messages.empty());
+    return !to_send.empty() || more;
+}
+
 void Sv2Connman::EventReadyToSend(NodeId node_id, bool& cancel_recv)
 {
     AssertLockNotHeld(m_clients_mutex);

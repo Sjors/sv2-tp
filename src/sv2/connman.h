@@ -167,6 +167,9 @@ private:
                                             const CService& them)
                                             EXCLUSIVE_LOCKS_REQUIRED(!m_clients_mutex) override;
 
+    bool ShouldTryToSend(NodeId node_id) const override
+        EXCLUSIVE_LOCKS_REQUIRED(!m_clients_mutex);
+
     void EventReadyToSend(NodeId node_id, bool& cancel_recv) override
         EXCLUSIVE_LOCKS_REQUIRED(!m_clients_mutex);
 
@@ -198,7 +201,7 @@ public:
 
     ~Sv2Connman();
 
-    Mutex m_clients_mutex;
+    mutable Mutex m_clients_mutex;
 
     /**
      * Starts the Stratum v2 server and thread.

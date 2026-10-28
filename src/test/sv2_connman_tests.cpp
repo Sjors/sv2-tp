@@ -3,6 +3,7 @@
 #include <sync.h>
 #include <test/sv2_connman_tester.h>
 #include <test/sv2_test_setup.h>
+#include <util/time.h>
 
 BOOST_FIXTURE_TEST_SUITE(sv2_connman_tests, Sv2BasicTestingSetup)
 
@@ -159,6 +160,36 @@ BOOST_AUTO_TEST_CASE(request_transaction_data_before_setup_connection_error)
     tester.RemoteToLocalMsg(solution);
     BOOST_REQUIRE(tester.WaitForCount(tester.m_submit_solution_count, 1));
     BOOST_REQUIRE(tester.IsConnected());
+}
+
+// The socket handler must only wait for send readiness when there is something
+// to send. Otherwise an idle connection makes it spin at full CPU.
+BOOST_AUTO_TEST_CASE(idle_client_does_not_wait_for_send)
+{
+    ConnTester tester{};
+
+    // Connected, before the handshake
+    tester.Connect();
+    BOOST_REQUIRE(tester.WaitForClientCount(1));
+    tester.ResetSendWaits();
+    UninterruptibleSleep(150ms);
+    BOOST_CHECK_EQUAL(tester.SendWaits(), 0);
+
+    // A reply queued by the socket handler itself is sent
+    tester.handshake();
+    tester.ResetSendWaits();
+    std::vector<uint8_t> template_id_bytes{0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    node::Sv2NetMsg request{node::Sv2MsgType::REQUEST_TRANSACTION_DATA, std::move(template_id_bytes)};
+    tester.RemoteToLocalMsg(request);
+    const auto [reply, bytes]{tester.LocalToRemoteMsg()};
+    BOOST_REQUIRE(bytes > 0);
+    BOOST_CHECK(reply.m_msg_type == node::Sv2MsgType::REQUEST_TRANSACTION_DATA_ERROR);
+    BOOST_CHECK(tester.SendWaits() > 0);
+
+    // Handshake complete, send queue empty
+    tester.ResetSendWaits();
+    UninterruptibleSleep(150ms);
+    BOOST_CHECK_EQUAL(tester.SendWaits(), 0);
 }
 
 BOOST_AUTO_TEST_CASE(setup_connection_validation)
