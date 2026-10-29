@@ -1,12 +1,26 @@
 Release Process
 ====================
 
-Note: I'm only following small subset of this process at the moment and there
-are still references to Bitcoin Core.
+Releases are normally prepared on `master`, without release candidates or a
+separate release branch.
 
-## Branch updates
+## Versioning and Bitcoin Core compatibility
 
-### Before every release (including patch releases and release candidates)
+Versions use `MAJOR.MINOR.PATCH`, with `CLIENT_VERSION_BUILD` holding the patch
+number in [CMakeLists.txt](../CMakeLists.txt).
+
+* When dropping support for an older Bitcoin Core major version, increment
+  `CLIENT_VERSION_MINOR` and reset `CLIENT_VERSION_BUILD` to `0`. For example,
+  `v1.1.0` required Core v31, while `v1.0.6` supported Core v30.2.
+* For other releases, increment the patch version. Adding support for a newer
+  Core version while retaining existing compatibility can be a patch release:
+  `v1.1.2` supports both Core v31 and v32.
+* State supported Core versions, including minimum patch versions and any
+  required upgrade order, in the README and release notes. Do not assume that
+  untested later Core versions will remain compatible.
+* Keep `CLIENT_VERSION_RC` at `0`.
+
+## Before every release
 
 * Check every subtree for new upstream release tags before preparing the release.
   See the [subtree inventory](../test/lint/README.md#git-subtree-checksh) for the
@@ -26,54 +40,57 @@ are still references to Bitcoin Core.
 * Merge the subtree update pull requests into `master` before proceeding with
   release preparation. Keep subtree updates separate from release preparation
   changes. If an upstream has no release tags, leave that subtree unchanged.
+* Check CI results for the intended release commit, including SRI integration
+  tests against the supported Core versions. Keep the compatibility claims and
+  [integration test matrix](../.github/workflows/sri-integration-test.yml) aligned.
 
-### Before every release candidate
+## Prepare and tag
 
-* Update release candidate version in `CMakeLists.txt` (`CLIENT_VERSION_RC`).
-* Update manpages (after rebuilding the binaries), see [gen-manpages.py](/contrib/devtools/README.md#gen-manpagespy).
+1. Start from a clean `master` and choose the release version using the rules
+   above. The patch number is normally already set by the previous release's
+   development-version bump.
+2. Update [doc/release-notes.md](release-notes.md) for this release, using the
+   changes since the previous release tag. Summarize notable changes, link the
+   relevant PRs, credit contributors, and explain Core compatibility and upgrade
+   requirements. Update the README if compatibility or usage has changed.
+   Previous notes remain available through release tags and GitHub releases;
+   no wiki or separate archive copies are needed.
+3. Set the chosen version in `CMakeLists.txt` and set
+   `CLIENT_VERSION_IS_RELEASE` to `true`. Configure and rebuild locally:
 
-### Before every major and minor release
+   ```sh
+   cmake --preset dev-mode -DCMAKE_BUILD_TYPE=Debug
+   cmake --build build -j16
+   ```
 
-* Update version in `CMakeLists.txt` (don't forget to set `CLIENT_VERSION_RC` to `0`).
-* Update manpages (see previous section)
-* Write release notes (see "Write the release notes" below) in doc/release-notes.md. If necessary,
-  archive the previous release notes as doc/release-notes/release-notes-${VERSION}.md.
+4. Regenerate the manpage and example configuration, then review the output:
 
-### Before every major release
+   ```sh
+   contrib/devtools/gen-manpages.py
+   contrib/devtools/gen-conf.sh
+   build/bin/sv2-tp --version
+   test/lint/check-doc.py
+   test/lint/lint-includes.py
+   git diff --check
+   ```
 
-* On both the master branch and the new release branch:
-  - update `CLIENT_VERSION_MAJOR` in [`CMakeLists.txt`](../CMakeLists.txt)
-* On the new release branch in [`CMakeLists.txt`](../CMakeLists.txt)(see [this commit](https://github.com/bitcoin/bitcoin/commit/742f7dd)):
-  - set `CLIENT_VERSION_MINOR` to `0`
-  - set `CLIENT_VERSION_BUILD` to `0`
-  - set `CLIENT_VERSION_IS_RELEASE` to `true`
+   Confirm the binary and manpage show the intended release version. Commit
+   the version, documentation, and generated changes together with subject
+   `build: prepare vX.Y.Z release`. Verify CI for the final preparation commit
+   before tagging it.
+5. Create a signed annotated tag on the preparation commit. For example, with
+   `VERSION=1.1.3` and that commit checked out:
 
-#### Before branch-off
+   ```sh
+   git tag -s "v${VERSION}" -m "v${VERSION}"
+   ```
 
-- Clear the release notes and move them to the wiki (see "Write the release notes" below).
-
-#### After branch-off (on the major release branch)
-
-- Update the versions.
-- Create the draft, named "*version* Release Notes Draft", as a [collaborative wiki](https://github.com/bitcoin-core/bitcoin-devwiki/wiki/_new).
-- Clear the release notes: `cp doc/release-notes-empty-template.md doc/release-notes.md`
-- Create a pinned meta-issue for testing the release candidate (see [this issue](https://github.com/bitcoin/bitcoin/issues/27621) for an example) and provide a link to it in the release announcements where useful.
-- Prune inputs from the sv2-tp-qa-assets repo (See [pruning
-  inputs](https://github.com/Sjors/sv2-tp-qa-assets#pruning-inputs)).
-
-#### Before final release
-
-- Ensure the "Needs release note" label is removed from all relevant pull
-  requests and issues:
-  https://github.com/bitcoin/bitcoin/issues?q=label%3A%22Needs+release+note%22
-
-#### Tagging a release (candidate)
-
-To tag the version (or release candidate) in git, use the `make-tag.py` script from [bitcoin-maintainer-tools](https://github.com/bitcoin-core/bitcoin-maintainer-tools). From the root of the repository run:
-
-    ../bitcoin-maintainer-tools/make-tag.py v(new version, e.g. 25.0)
-
-This will perform a few last-minute consistency checks in the build system files, and if they pass, create a signed tag.
+   Publish the release tag for builders to fetch. Build from this tag throughout
+   the remaining steps.
+6. On `master`, increment `CLIENT_VERSION_BUILD` and set
+   `CLIENT_VERSION_IS_RELEASE` back to `false`. Commit with subject
+   `build: unset release flag and bump patch version`. This development commit
+   is not part of the tagged release.
 
 ## Building
 
@@ -88,16 +105,6 @@ Check out the source code in the following directory hierarchy.
     git clone https://github.com/stratum-mining/sv2-tp-guix.sigs.git
     git clone https://github.com/stratum-mining/sv2-tp-detached-sigs.git
     git clone https://github.com/stratum-mining/sv2-tp.git
-
-### Write the release notes
-
-Open a draft of the release notes for collaborative editing at TBD.
-
-For the period during which the notes are being edited on the wiki, the version on the branch should be wiped and replaced with a link to the wiki which should be used for all announcements until `-final`.
-
-Generate list of authors:
-
-    git log --format='- %aN' v(current version, e.g. 25.0)..v(new version, e.g. 25.1) | grep -v 'merge-script' | sort -fiu
 
 ### Setup and perform Guix builds
 
@@ -236,14 +243,11 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 
     3. The `SHA256SUMS.asc` combined signature file you just created.
 
-- Archive the release notes for the new version to `doc/release-notes/release-notes-${VERSION}.md`
-  (branch `master` and branch of the release).
-
 - Update repositories
 
   - Delete post-EOL [release branches](https://github.com/stratum-mining/sv2-tp/branches/all) and create a tag `v${branch_name}-final`.
 
-  - Create a [new GitHub release](https://github.com/stratum-mining/sv2-tp/releases/new) with a link to the archived release notes
+  - Create a [new GitHub release](https://github.com/stratum-mining/sv2-tp/releases/new) using the release notes from the tag
 
 - Announce the release:
 
