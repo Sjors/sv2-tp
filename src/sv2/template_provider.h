@@ -226,8 +226,8 @@ private:
     /* Forget templates from before the last block, but with a few seconds margin. */
     void PruneBlockTemplateCache() EXCLUSIVE_LOCKS_REQUIRED(m_tp_mutex);
 
-    /** Serialize and write a block to disk asynchronously after a short delay, using the provided template. */
-    void SaveBlockAsync(std::shared_ptr<BlockTemplate> block_template, bool submitted);
+    /** Serialize and write a block to disk asynchronously after a short delay, using a returned block or a legacy template. */
+    void SaveBlockAsync(std::shared_ptr<BlockTemplate> block_template, bool submitted, std::optional<CBlock> block);
 
     /**
      * Sends the best NewTemplate and SetNewPrevHash to a client.
