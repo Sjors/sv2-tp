@@ -55,7 +55,8 @@ namespace BCLog {
         ALL   = ~NONE,
     };
     enum class Level {
-        Trace = 0, // High-volume or detailed logging for development/debugging
+        TraceUnsafe = 0, // Like Trace, but also logs secrets such as Noise handshake keys
+        Trace,     // High-volume or detailed logging for development/debugging
         Debug,     // Reasonably noisy logging, but still usable in production
         Info,      // Default
         Warning,
@@ -262,5 +263,6 @@ inline void LogPrintFormatInternal(std::source_location&& source_loc, BCLog::Log
 // Log conditionally, prefixing the output with the passed category name.
 #define LogDebug(category, ...) LogPrintLevel(category, BCLog::Level::Debug, __VA_ARGS__)
 #define LogTrace(category, ...) LogPrintLevel(category, BCLog::Level::Trace, __VA_ARGS__)
+#define LogTraceUnsafe(category, ...) LogPrintLevel(category, BCLog::Level::TraceUnsafe, __VA_ARGS__)
 
 #endif // BITCOIN_LOGGING_H

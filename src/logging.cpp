@@ -209,6 +209,8 @@ bool GetLogCategory(BCLog::LogFlags& flag, std::string_view str)
 std::string BCLog::Logger::LogLevelToStr(BCLog::Level level)
 {
     switch (level) {
+    case BCLog::Level::TraceUnsafe:
+        return "trace-unsafe";
     case BCLog::Level::Trace:
         return "trace";
     case BCLog::Level::Debug:
@@ -235,7 +237,9 @@ static std::string LogCategoryToStr(BCLog::LogFlags category)
 
 static std::optional<BCLog::Level> GetLogLevel(std::string_view level_str)
 {
-    if (level_str == "trace") {
+    if (level_str == "trace-unsafe") {
+        return BCLog::Level::TraceUnsafe;
+    } else if (level_str == "trace") {
         return BCLog::Level::Trace;
     } else if (level_str == "debug") {
         return BCLog::Level::Debug;
@@ -261,9 +265,9 @@ std::vector<LogCategory> BCLog::Logger::LogCategoriesList() const
 }
 
 /** Log severity levels that can be selected by the user. */
-static constexpr std::array<BCLog::Level, 3> LogLevelsList()
+static constexpr std::array<BCLog::Level, 4> LogLevelsList()
 {
-    return {BCLog::Level::Info, BCLog::Level::Debug, BCLog::Level::Trace};
+    return {BCLog::Level::Info, BCLog::Level::Debug, BCLog::Level::Trace, BCLog::Level::TraceUnsafe};
 }
 
 std::string BCLog::Logger::LogLevelsString() const
