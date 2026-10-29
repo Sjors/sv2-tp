@@ -27,6 +27,8 @@ class CBlock;
 static constexpr int NODE_VERSION_31_0{310000};
 //! Bitcoin Core v32.0 mining interface. The node may be newer.
 static constexpr int NODE_VERSION_32_00{320000};
+//! Mining interface that returns a block snapshot in the submission reply.
+static constexpr int NODE_VERSION_33_00{330000};
 
 struct Sv2TemplateProviderOptions
 {

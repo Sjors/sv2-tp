@@ -297,9 +297,11 @@ BOOST_AUTO_TEST_CASE(submit_solution_interface_version)
         const char* description;
         int expected_calls;      // calls to submitSolution()
         int expected_old7_calls; // calls to submitSolutionOld7()
+        int expected_version;
     } cases[]{
-        {MockNodeVersion::CURRENT, "Simulate a recent node", 1, 0},
-        {MockNodeVersion::V31, "Simulate a Bitcoin Core v31 node", 0, 1},
+        {MockNodeVersion::CURRENT, "Simulate a v33 node", 1, 0, NODE_VERSION_33_00},
+        {MockNodeVersion::V32, "Simulate a Bitcoin Core v32 node", 1, 0, NODE_VERSION_32_00},
+        {MockNodeVersion::V31, "Simulate a Bitcoin Core v31 node", 0, 1, NODE_VERSION_31_0},
     };
 
     for (const auto& test_case : cases) {
@@ -322,6 +324,7 @@ BOOST_AUTO_TEST_CASE(submit_solution_interface_version)
 
         BOOST_CHECK_EQUAL(tester.m_state->submit_solution_calls.load(), test_case.expected_calls);
         BOOST_CHECK_EQUAL(tester.m_state->submit_solution_old7_calls.load(), test_case.expected_old7_calls);
+        BOOST_CHECK_EQUAL(tester.m_tp->GetNodeVersion(), test_case.expected_version);
 
         // Let the sv2-saveblk thread finish, it uses the IPC connection.
         UninterruptibleSleep(std::chrono::milliseconds{1000});

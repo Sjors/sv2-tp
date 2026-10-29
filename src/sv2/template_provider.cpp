@@ -663,6 +663,7 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
         const CTransactionRef coinbase_tx{MakeTransactionRef(solution.m_coinbase_tx)};
         std::string reason, debug;
         bool submitted{false};
+        std::optional<CBlock> submitted_block;
 
         if (m_node_version < NODE_VERSION_32_00) {
             submitted = block_template->submitSolutionOld7(solution.m_version,
@@ -670,13 +671,16 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
                                                            solution.m_nonce,
                                                            coinbase_tx);
         } else {
-            block_template->submitSolution(solution.m_version,
+            submitted_block = block_template->submitSolution(solution.m_version,
                                                        solution.m_ntime,
                                                        solution.m_nonce,
                                                        coinbase_tx,
                                                        reason,
                                                        debug,
                                                        submitted);
+            // An omitted field identifies the older reply without an extra
+            // probe or a direct node-version query. Rejected blocks count too.
+            if (submitted_block) m_node_version = NODE_VERSION_33_00;
         }
 
         if (!submitted) {
