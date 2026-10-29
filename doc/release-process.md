@@ -6,6 +6,27 @@ are still references to Bitcoin Core.
 
 ## Branch updates
 
+### Before every release (including patch releases and release candidates)
+
+* Check every subtree for new upstream release tags before preparing the release.
+  See the [subtree inventory](../test/lint/README.md#git-subtree-checksh) for the
+  subtree paths and upstream repositories (currently `src/ipc/libmultiprocess`
+  and `src/secp256k1`).
+* Query each upstream repository's tags, for example with
+  `git ls-remote --tags <upstream-url>`, and compare its latest release tag with
+  the upstream revision recorded in the latest subtree update's
+  `git-subtree-split` metadata. If the tagged release is already included, no
+  update is needed. New commits on an upstream branch alone do not require an
+  update; only new release tags qualify.
+* If a newer release tag is available, update the subtree to that tag in a
+  separate pull request, following the [subtree update
+  instructions](developer-notes.md#subtrees). Use the release tag as the ref in
+  `git subtree pull`, rather than the upstream branch tip, and run
+  `test/lint/git-subtree-check.sh -r <prefix>` after fetching the upstream ref.
+* Merge the subtree update pull requests into `master` before proceeding with
+  release preparation. Keep subtree updates separate from release preparation
+  changes. If an upstream has no release tags, leave that subtree unchanged.
+
 ### Before every release candidate
 
 * Update release candidate version in `CMakeLists.txt` (`CLIENT_VERSION_RC`).
