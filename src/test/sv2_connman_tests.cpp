@@ -7,6 +7,62 @@
 
 BOOST_FIXTURE_TEST_SUITE(sv2_connman_tests, Sv2BasicTestingSetup)
 
+BOOST_AUTO_TEST_CASE(connection_limit)
+{
+    ConnTester tester{1};
+
+    // A client that has not started its handshake still occupies a slot.
+    tester.Connect();
+    BOOST_REQUIRE(tester.WaitForClientCount(1));
+
+    // Excess clients are closed without a handshake response.
+    for (size_t i{0}; i < 3; ++i) {
+        tester.Connect();
+        tester.RemoteToLocalBytes();
+        BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), 0U);
+        BOOST_CHECK_EQUAL(tester.ClientCount(), 1U);
+    }
+
+    // Removing the original client makes room for a new, working connection.
+    {
+        LOCK(tester.m_connman->m_clients_mutex);
+        auto client{tester.m_connman->GetClientById(0)};
+        BOOST_REQUIRE(client);
+        LOCK(client->cs_status);
+        client->m_disconnect_flag = true;
+    }
+    BOOST_REQUIRE(tester.WaitForClientCount(0));
+    tester.handshake();
+    BOOST_CHECK_EQUAL(tester.ClientCount(), 1U);
+
+    // Established connections also count toward the limit.
+    tester.Connect();
+    tester.RemoteToLocalBytes();
+    BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), 0U);
+    BOOST_CHECK_EQUAL(tester.ClientCount(), 1U);
+}
+
+BOOST_AUTO_TEST_CASE(default_connection_limit)
+{
+    ConnTester tester{};
+    for (size_t i{0}; i < DEFAULT_MAX_SV2_CONNECTIONS; ++i) tester.Connect();
+    BOOST_REQUIRE(tester.WaitForClientCount(DEFAULT_MAX_SV2_CONNECTIONS));
+    tester.Connect();
+    BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), 0U);
+    BOOST_CHECK_EQUAL(tester.ClientCount(), DEFAULT_MAX_SV2_CONNECTIONS);
+}
+
+BOOST_AUTO_TEST_CASE(zero_disables_connection_limit)
+{
+    ConnTester tester{0};
+    for (size_t i{0}; i < DEFAULT_MAX_SV2_CONNECTIONS; ++i) tester.Connect();
+    BOOST_REQUIRE(tester.WaitForClientCount(DEFAULT_MAX_SV2_CONNECTIONS));
+
+    // Zero disables the limit, allowing a working connection beyond the default cap.
+    tester.handshake();
+    BOOST_CHECK_EQUAL(tester.ClientCount(), DEFAULT_MAX_SV2_CONNECTIONS + 1);
+}
+
 BOOST_AUTO_TEST_CASE(client_tests)
 {
     ConnTester tester{};

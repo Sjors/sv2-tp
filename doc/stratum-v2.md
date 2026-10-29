@@ -177,9 +177,16 @@ The Cluster Mempool project might enable that.
 The current Template Provider should not be run on the public internet with
 unlimited access. It is not hardened against DoS attacks, nor against mempool probing.
 
-There's currently no limit to the number of Job Declarator clients that can connect,
-which could exhaust memory. There's also no limit to the amount of raw transaction
+The number of simultaneous connections is limited by `-sv2maxconnections` (default:
+16), including clients that have not completed the Noise handshake. This does not
+bound the number of templates a client can request or the amount of raw transaction
 data that can be requested.
+
+There are no handshake or idle timeouts, so silent clients can fill the
+connection slots and block other clients. Clients marked for disconnection can
+also hold slots while outgoing messages remain queued.
+Avoid very low values for `-sv2maxconnections`, as an unresponsive connection can
+keep its slot and prevent a client from reconnecting.
 
 Templates reveal what is in the mempool without any delay or randomization.
 
@@ -199,6 +206,12 @@ The listening port can be changed with `-sv2port`.
 
 By default it only accepts connections from localhost. This can be changed
 using `-sv2bind`. See DoS and Privacy above.
+
+Use `-sv2maxconnections=<n>` to set the maximum number of simultaneous Stratum v2
+connections (default: 16). Excess connections are closed before the Noise
+handshake and before allocating a client transport, template handler thread, or
+IPC waiter. Clients awaiting disconnection still count until they are removed.
+Setting `-sv2maxconnections=0` disables the connection limit.
 
 Use `-debug=sv2` to see Stratum v2 related log messages. Set `-loglevel=sv2:trace`
 to see which messages are exchanged with the Job Declarator client.

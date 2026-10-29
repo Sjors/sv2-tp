@@ -45,6 +45,9 @@ struct Sv2TemplateProviderOptions
      */
     uint16_t port{8336};
 
+    /** Maximum simultaneous incoming connections (0 = no limit), including incomplete handshakes. */
+    size_t max_connections{DEFAULT_MAX_SV2_CONNECTIONS};
+
     /**
      * Minimum fee delta to send new template upstream
      */

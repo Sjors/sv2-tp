@@ -6,7 +6,7 @@
 #include <util/sock.h>
 #include <util/time.h>
 
-ConnTester::ConnTester()
+ConnTester::ConnTester(size_t max_connections)
 {
     CreateSock = [this](int, int, int) -> std::unique_ptr<Sock> {
         // This will be the bind/listen socket from m_connman. It will
@@ -27,7 +27,7 @@ ConnTester::ConnTester()
 
     m_connman = std::make_unique<Sv2Connman>(static_key, m_connman_authority_pubkey, certificate);
 
-    BOOST_REQUIRE(m_connman->Start(this, "127.0.0.1", 18447));
+    BOOST_REQUIRE(m_connman->Start(this, "127.0.0.1", 18447, max_connections));
 }
 
 ConnTester::~ConnTester()

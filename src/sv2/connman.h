@@ -15,6 +15,8 @@
 #include <threadsafety.h>
 #include <utility>
 
+static constexpr size_t DEFAULT_MAX_SV2_CONNECTIONS{16};
+
 struct Sv2Client
 {
     /* Ephemeral identifier */
@@ -144,6 +146,9 @@ private:
     using Clients = std::unordered_map<NodeId, std::shared_ptr<Sv2Client>>;
     Clients m_sv2_clients GUARDED_BY(m_clients_mutex);
 
+    /** Maximum number of clients (0 = no limit), including incomplete handshakes and pending disconnects. */
+    size_t m_max_connections{DEFAULT_MAX_SV2_CONNECTIONS};
+
     /**
      * Creates a socket and binds the port for new stratum v2 connections.
      */
@@ -155,7 +160,8 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(client.cs_send);
 
     /**
-     * Create a `Sv2Client` object and add it to the `m_sv2_clients` member.
+     * Reject connections exceeding the limit before allocating a transport or client.
+     * Otherwise create a `Sv2Client` and add it to `m_sv2_clients`.
      * @param[in] node_id Id of the newly accepted connection.
      * @param[in] me The address and port at our side of the connection.
      * @param[in] them The address and port at the peer's side of the connection.
@@ -207,7 +213,8 @@ public:
      * Starts the Stratum v2 server and thread.
      * returns false if port is unable to bind.
      */
-    [[nodiscard]] bool Start(Sv2EventsInterface* msgproc, std::string host, uint16_t port);
+    [[nodiscard]] bool Start(Sv2EventsInterface* msgproc, std::string host, uint16_t port,
+                             size_t max_connections = DEFAULT_MAX_SV2_CONNECTIONS);
 
     /**
      * Triggered on interrupt signals to stop the main event loop in ThreadSv2Handler().

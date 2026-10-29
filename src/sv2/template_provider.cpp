@@ -131,7 +131,7 @@ bool Sv2TemplateProvider::Start(const Sv2TemplateProviderOptions& options)
 
     DetectNodeVersion();
 
-    if (!m_connman->Start(this, m_options.host, m_options.port)) {
+    if (!m_connman->Start(this, m_options.host, m_options.port, m_options.max_connections)) {
         return false;
     }
 

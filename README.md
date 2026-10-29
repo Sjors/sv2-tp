@@ -74,6 +74,7 @@ Here is an example configuration:
 chain=signet
 
 ipcconnect=unix
+sv2maxconnections=16
 templateinterval=5
 sv2feedelta=1000
 
