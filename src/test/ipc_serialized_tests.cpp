@@ -4,6 +4,8 @@
 
 #include <ipc/capnp/common-types.h>
 #include <ipc/capnp/common.capnp.h>
+#include <ipc/serialized.h>
+#include <primitives/block.h>
 
 #include <boost/test/unit_test.hpp>
 #include <capnp/message.h>
@@ -41,6 +43,12 @@ template <typename Payload>
 auto& PayloadBytes(Payload& value)
 {
     return value;
+}
+
+template <typename T>
+auto& PayloadBytes(ipc::Serialized<T>& value)
+{
+    return value.bytes;
 }
 
 template <typename Payload>
@@ -82,11 +90,14 @@ BOOST_FIXTURE_TEST_SUITE(ipc_serialized_tests, IpcFixture)
 BOOST_AUTO_TEST_CASE(owned_roundtrip)
 {
     CheckOwnedRoundTrip<std::vector<unsigned char>>(context);
+    // Deliberately invalid block bytes: retaining them must not decode a block.
+    CheckOwnedRoundTrip<ipc::Serialized<CBlock>>(context);
 }
 
 BOOST_AUTO_TEST_CASE(empty_roundtrip)
 {
     CheckEmptyRoundTrip<std::vector<unsigned char>>(context);
+    CheckEmptyRoundTrip<ipc::Serialized<CBlock>>(context);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
