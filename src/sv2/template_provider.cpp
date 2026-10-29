@@ -283,6 +283,7 @@ void Sv2TemplateProvider::ThreadSv2Handler()
                                            ThreadSv2ClientHandler(client_id);
                                            *done = true;
                                        });
+            ++m_client_thread_count;
         });
 
         // Join finished threads once connman has removed their client. A handler
@@ -292,12 +293,13 @@ void Sv2TemplateProvider::ThreadSv2Handler()
             if (it->second.done &&
                 !WITH_LOCK(m_connman->m_clients_mutex, return m_connman->GetClientById(it->first))) {
                 it->second.thread.join();
+                --m_client_thread_count;
                 it = client_threads.erase(it);
             } else {
                 ++it;
             }
         }
-        m_client_thread_count = client_threads.size();
+        Assume(m_client_thread_count == client_threads.size());
 
         // Take a break (handling new connections is not urgent)
         std::this_thread::sleep_for(100ms);
