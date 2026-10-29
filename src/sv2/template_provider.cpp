@@ -11,6 +11,7 @@
 #include <sv2/noise.h>
 #include <consensus/validation.h> // NO_WITNESS_COMMITMENT
 #include <util/chaintype.h>
+#include <util/check.h>
 #include <util/readwritefile.h>
 #include <util/strencodings.h>
 #include <util/thread.h>
@@ -310,9 +311,10 @@ void Sv2TemplateProvider::ThreadSv2Handler()
             // If the node is shutting down, then all pending waitNext() calls
             // should return in under a second.
             entry.second.thread.join();
+            --m_client_thread_count;
         }
     }
-    m_client_thread_count = 0;
+    Assume(m_client_thread_count == 0);
 
 
 }
