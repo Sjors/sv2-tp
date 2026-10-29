@@ -574,6 +574,19 @@ BOOST_AUTO_TEST_CASE(template_creation_failure_disconnects_client)
     BOOST_CHECK(std::find(weights.begin(), weights.end(), uint64_t{121'568}) != weights.end());
 }
 
+// An interrupted template creation returns no template. The handler must
+// disconnect its client even if the template provider itself is still running.
+BOOST_AUTO_TEST_CASE(template_creation_interrupted_disconnects_client)
+{
+    TPTester tester{};
+    tester.handshake();
+    tester.SendSetupConnection();
+    tester.m_mining_proxy->interrupt();
+    tester.SendCoinbaseOutputConstraints();
+    BOOST_REQUIRE(tester.m_mining_control->WaitForCreateCalls(1));
+    BOOST_CHECK(WaitForNoConnectedClients(tester));
+}
+
 // Any other failure that ends the client's handler thread must also disconnect
 // the client, since no thread will send it templates anymore.
 BOOST_AUTO_TEST_CASE(handler_failure_disconnects_client)

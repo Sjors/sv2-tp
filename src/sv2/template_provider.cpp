@@ -390,6 +390,7 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                 if (!block_template) {
                     LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "No new template for client id=%zu, node is shutting down\n",
                         client_id);
+                    disconnect_client();
                     break;
                 }
 
