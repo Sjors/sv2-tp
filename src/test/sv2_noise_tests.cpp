@@ -143,4 +143,48 @@ BOOST_AUTO_TEST_CASE(handshake_and_transport_test)
     BOOST_REQUIRE(bob.DecryptMessage(transport, plain_receive));
     BOOST_CHECK_EQUAL(HexStr(plain_receive), HexStr(TEST));
 }
+
+// Handshake secrets are only logged at trace-unsafe, not at trace.
+BOOST_AUTO_TEST_CASE(handshake_secrets_only_logged_at_trace_unsafe)
+{
+    const auto run_handshake = [] {
+        auto bob_static_key{GenerateRandomKey()};
+        auto bob_authority_key{GenerateRandomKey()};
+        uint32_t now{0}, valid_from{0}, valid_to{0};
+        auto bob_certificate = MakeSkewTolerantCertificate(bob_static_key, bob_authority_key, now, valid_from, valid_to);
+        Sv2HandshakeState alice{GenerateRandomKey(), XOnlyPubKey(bob_authority_key.GetPubKey())};
+        Sv2HandshakeState bob{std::move(bob_static_key), std::move(bob_certificate)};
+
+        std::vector<std::byte> transport(Sv2HandshakeState::ELLSWIFT_PUB_KEY_SIZE);
+        alice.WriteMsgEphemeralPK(transport);
+        bob.ReadMsgEphemeralPK(transport);
+        transport.resize(Sv2HandshakeState::HANDSHAKE_STEP2_SIZE);
+        bob.WriteMsgES(transport);
+        BOOST_REQUIRE(alice.ReadMsgES(transport));
+    };
+
+    // Restore the log levels for later test cases, also when a check fails.
+    struct RestoreLevels {
+        std::unordered_map<BCLog::LogFlags, BCLog::Level> levels{LogInstance().CategoryLevels()};
+        ~RestoreLevels() { LogInstance().SetCategoryLogLevel(levels); }
+    } restore_levels;
+
+    BOOST_REQUIRE(LogInstance().SetCategoryLogLevel("sv2", "trace"));
+    {
+        Sv2LogCapture logs;
+        run_handshake();
+        BOOST_CHECK(logs.WaitFor("Mix key with ECDH result", 0ms));
+        BOOST_CHECK(!logs.WaitFor("] ECDH result: ", 0ms));
+        BOOST_CHECK(!logs.WaitFor("] Chaining key: ", 0ms));
+    }
+
+    BOOST_REQUIRE(LogInstance().SetCategoryLogLevel("sv2", "trace-unsafe"));
+    {
+        Sv2LogCapture logs;
+        run_handshake();
+        BOOST_CHECK(logs.WaitFor("[sv2:trace-unsafe] ECDH result: ", 0ms));
+        BOOST_CHECK(logs.WaitFor("[sv2:trace-unsafe] Chaining key: ", 0ms));
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
