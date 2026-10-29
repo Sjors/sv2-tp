@@ -284,11 +284,12 @@ void Sv2Connman::EventGotPermanentReadError(NodeId node_id, const std::string& e
 void Sv2Connman::ProcessSv2Message(const Sv2NetMsg& sv2_net_msg, Sv2Client& client)
 {
     uint8_t msg_type[1] = {uint8_t(sv2_net_msg.m_msg_type)};
+    const auto msg_name{node::SV2_MSG_NAMES.find(sv2_net_msg.m_msg_type)};
     LogPrintLevel(BCLog::SV2, BCLog::Level::Debug, "Received 0x%s %s from client id=%zu\n",
                    // After clang-17:
                    // std::format("{:x}", uint8_t(sv2_net_msg.m_msg_type)),
                    HexStr(msg_type),
-                   node::SV2_MSG_NAMES.at(sv2_net_msg.m_msg_type), client.m_id);
+                   msg_name == node::SV2_MSG_NAMES.end() ? "unknown" : msg_name->second, client.m_id);
 
     DataStream ss (sv2_net_msg.m_msg);
 

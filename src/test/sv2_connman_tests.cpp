@@ -218,6 +218,24 @@ BOOST_AUTO_TEST_CASE(request_transaction_data_before_setup_connection_error)
     BOOST_REQUIRE(tester.IsConnected());
 }
 
+// A message type the TP doesn't implement is ignored, also with debug logging on.
+BOOST_AUTO_TEST_CASE(unknown_message_type_ignored_with_debug_logging)
+{
+    Sv2LogCapture logs;
+    ConnTester tester{};
+    tester.handshake();
+    node::Sv2NetMsg setup{tester.SetupConnectionMsg()};
+    tester.RemoteToLocalMsg(setup);
+    BOOST_REQUIRE_EQUAL(tester.LocalToRemoteBytes(), SV2_HEADER_ENCRYPTED_SIZE + 6 + Poly1305::TAGLEN);
+
+    // AllocateMiningJobToken (0x50) is a Job Declaration message. Empty payloads
+    // are rejected by the transport, so send one byte.
+    node::Sv2NetMsg unknown{static_cast<node::Sv2MsgType>(0x50), std::vector<uint8_t>{0x00}};
+    tester.RemoteToLocalMsg(unknown);
+    BOOST_REQUIRE(logs.WaitFor("Received unknown message type 0x50"));
+    BOOST_CHECK(tester.IsFullyConnected());
+}
+
 // The socket handler must only wait for send readiness when there is something
 // to send. Otherwise an idle connection makes it spin at full CPU.
 BOOST_AUTO_TEST_CASE(idle_client_does_not_wait_for_send)
