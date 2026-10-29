@@ -166,3 +166,27 @@ and any applicable signing steps to this checklist at that time.
 4. Publish the GitHub release. Announce it in SRI Discord and other relevant
    channels as appropriate; a mailing-list announcement is not required for
    every patch release.
+
+## Optional maintenance releases
+
+Older release series may receive selected fixes when needed. There is no
+automatic commitment to maintain every series; state support and end-of-life
+decisions explicitly when relevant.
+
+1. Reuse the series' maintenance branch, or create it from the latest release
+   tag in that series when the first backport is needed. For example, create
+   branch `1.0` from `v1.0.6` to maintain compatibility with Core v30.2.
+2. Backport selected fixes through separate PRs targeting that branch,
+   preferably from fixes already merged into `master`. Preserve the series'
+   Core compatibility and keep changes scoped to those fixes and their
+   dependencies. Test against the Core versions supported by that series;
+   the current `master` integration matrix may not apply.
+3. Check upstream subtree release tags on the maintenance branch too. Handle
+   subtree updates in separate PRs targeting that branch, and verify that
+   they preserve the series' compatibility before merging.
+4. Follow [Prepare and tag](#prepare-and-tag) on the maintenance branch in
+   place of `master`. Use the next unused patch version in that series, such
+   as `v1.0.7`, and write notes covering changes since its previous release.
+   Then follow the same building, codesigning, and publication steps above.
+5. Keep the development-version bump on the maintenance branch. Do not merge
+   its release preparation or version changes into `master`.
