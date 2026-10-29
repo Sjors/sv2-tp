@@ -324,16 +324,6 @@ void Sv2TemplateProvider::ThreadSv2Handler()
 
 void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 {
-    // A client without a handler thread never receives templates again, so
-    // disconnect it when this thread gives up.
-    const auto disconnect_client = [this, client_id] {
-        LOCK(m_connman->m_clients_mutex);
-        if (std::shared_ptr<Sv2Client> client = m_connman->GetClientById(client_id)) {
-            LOCK(client->cs_status);
-            client->m_disconnect_flag = true;
-        }
-    };
-
     try {
         Timer timer(m_options.template_interval);
 
@@ -568,7 +558,13 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                       "Client thread for id=%zu exiting after exception, disconnecting: %s\n",
                       client_id, e.what());
     }
-    disconnect_client();
+    // A client without a handler thread never receives templates again, so
+    // disconnect it when this thread gives up.
+    LOCK(m_connman->m_clients_mutex);
+    if (std::shared_ptr<Sv2Client> client = m_connman->GetClientById(client_id)) {
+        LOCK(client->cs_status);
+        client->m_disconnect_flag = true;
+    }
 }
 
 void Sv2TemplateProvider::RequestTransactionData(Sv2Client& client, node::Sv2RequestTransactionDataMsg msg)
