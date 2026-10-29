@@ -5,6 +5,7 @@
 #include <test/sv2_mock_mining.h>
 
 #include <sync.h>
+#include <streams.h>
 #include <cassert>
 #include <logging.h>
 #include <sv2/messages.h>
@@ -60,7 +61,21 @@ CBlockHeader MockBlockTemplate::getBlockHeader() { return block.GetBlockHeader()
 CBlock MockBlockTemplate::getBlock()
 {
     LOCK(state->m);
-    return state->get_block_override.value_or(block);
+    if (!state->get_block_override) return block;
+    CBlock result;
+    SpanReader reader{MakeByteSpan(state->get_block_override->bytes)};
+    reader >> TX_WITH_WITNESS(result);
+    return result;
+}
+
+ipc::Serialized<CBlock> MockBlockTemplate::getSerializedBlock()
+{
+    LOCK(state->m);
+    if (state->get_block_override) return *state->get_block_override;
+    ipc::Serialized<CBlock> result;
+    VectorWriter writer{result.bytes, 0};
+    writer << TX_WITH_WITNESS(block);
+    return result;
 }
 std::vector<CAmount> MockBlockTemplate::getTxFees()
 {
