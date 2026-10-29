@@ -11,6 +11,7 @@
 #include <sv2/noise.h>
 #include <consensus/validation.h> // NO_WITNESS_COMMITMENT
 #include <util/chaintype.h>
+#include <util/check.h>
 #include <util/readwritefile.h>
 #include <util/strencodings.h>
 #include <util/thread.h>
@@ -282,21 +283,24 @@ void Sv2TemplateProvider::ThreadSv2Handler()
                                            ThreadSv2ClientHandler(client_id);
                                            *done = true;
                                        });
+            ++m_client_thread_count;
         });
 
         // Join finished threads once connman has removed their client. A handler
-        // notices its client is gone when waitNext() returns. A thread whose client
-        // is still there is kept, or ForEachClient would start a new one.
+        // notices its client is gone when waitNext() returns.
         for (auto it = client_threads.begin(); it != client_threads.end();) {
+            // Handlers flag their client before setting done. Keep the client
+            // removal check as an extra safeguard against restarting a handler.
             if (it->second.done &&
                 !WITH_LOCK(m_connman->m_clients_mutex, return m_connman->GetClientById(it->first))) {
                 it->second.thread.join();
+                --m_client_thread_count;
                 it = client_threads.erase(it);
             } else {
                 ++it;
             }
         }
-        m_client_thread_count = client_threads.size();
+        Assume(m_client_thread_count == client_threads.size());
 
         // Take a break (handling new connections is not urgent)
         std::this_thread::sleep_for(100ms);
@@ -310,25 +314,16 @@ void Sv2TemplateProvider::ThreadSv2Handler()
             // If the node is shutting down, then all pending waitNext() calls
             // should return in under a second.
             entry.second.thread.join();
+            --m_client_thread_count;
         }
     }
-    m_client_thread_count = 0;
+    Assume(m_client_thread_count == 0);
 
 
 }
 
 void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
 {
-    // A client without a handler thread never receives templates again, so
-    // disconnect it when this thread gives up.
-    const auto disconnect_client = [this, client_id] {
-        LOCK(m_connman->m_clients_mutex);
-        if (std::shared_ptr<Sv2Client> client = m_connman->GetClientById(client_id)) {
-            LOCK(client->cs_status);
-            client->m_disconnect_flag = true;
-        }
-    };
-
     try {
         Timer timer(m_options.template_interval);
 
@@ -380,7 +375,6 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                     // Break rather than rethrow, so the failure is logged once.
                     LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Could not create a template for client id=%zu, disconnecting: %s\n",
                                   client_id, e.what());
-                    disconnect_client();
                     break;
                 }
                 if (!block_template) {
@@ -563,7 +557,13 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
         LogPrintLevel(BCLog::SV2, BCLog::Level::Debug,
                       "Client thread for id=%zu exiting after exception, disconnecting: %s\n",
                       client_id, e.what());
-        disconnect_client();
+    }
+    // A client without a handler thread never receives templates again, so
+    // disconnect it when this thread gives up.
+    LOCK(m_connman->m_clients_mutex);
+    if (std::shared_ptr<Sv2Client> client = m_connman->GetClientById(client_id)) {
+        LOCK(client->cs_status);
+        client->m_disconnect_flag = true;
     }
 }
 
