@@ -94,166 +94,75 @@ number in [CMakeLists.txt](../CMakeLists.txt).
 
 ## Building
 
-### First time / New builders
+For first-time setup, see the [Guix installation instructions](../contrib/guix/INSTALL.md)
+and [macOS SDK setup](../contrib/guix/README.md#making-the-xcode-sdk-available-for-macos-cross-compilation).
+Builders also need local clones of
+[sv2-tp-guix.sigs](https://github.com/stratum-mining/sv2-tp-guix.sigs) and, to
+assemble signed macOS binaries,
+[sv2-tp-detached-sigs](https://github.com/stratum-mining/sv2-tp-detached-sigs).
 
-Install Guix using one of the installation methods detailed in
-[contrib/guix/INSTALL.md](/contrib/guix/INSTALL.md).
+1. In a clean builder checkout, fetch and check out the release tag. `VERSION`
+   is the release version without the `v` prefix, for example `1.1.3`:
 
-Check out the source code in the following directory hierarchy.
+   ```sh
+   git fetch origin "v${VERSION}"
+   git checkout --detach "v${VERSION}"
+   ./contrib/guix/guix-build
+   ```
 
-    cd /path/to/your/toplevel/build
-    git clone https://github.com/stratum-mining/sv2-tp-guix.sigs.git
-    git clone https://github.com/stratum-mining/sv2-tp-detached-sigs.git
-    git clone https://github.com/stratum-mining/sv2-tp.git
-
-### Setup and perform Guix builds
-
-Checkout the Template Provider version you'd like to build:
-
-```sh
-pushd ./bitcoin
-SIGNER='(your builder key, ie bluematt, sipa, etc)'
-VERSION='(new version without v-prefix, e.g. 25.0)'
-git fetch origin "v${VERSION}"
-git checkout "v${VERSION}"
-popd
-```
-
-Ensure your guix.sigs are up-to-date if you wish to `guix-verify` your builds
-against other `guix-attest` signatures.
-
-```sh
-git -C ./guix.sigs pull
-```
-
-### Create the macOS SDK tarball (first time, or when SDK version changes)
-
-Create the macOS SDK tarball, see the [macdeploy
-instructions](/contrib/macdeploy/README.md#sdk-extraction) for
-details.
-
-### Build and attest to build outputs
-
-Follow the relevant Guix README.md sections:
-- [Building](/contrib/guix/README.md#building)
-- [Attesting to build outputs](/contrib/guix/README.md#attesting-to-build-outputs)
-
-### Verify other builders' signatures to your own (optional)
-
-- [Verifying build output attestations](/contrib/guix/README.md#verifying-build-output-attestations)
-
-### Commit your non codesigned signature to guix.sigs
-
-```sh
-pushd ./guix.sigs
-git add "${VERSION}/${SIGNER}"/noncodesigned.SHA256SUMS{,.asc}
-git commit -m "Add attestations by ${SIGNER} for ${VERSION} non-codesigned"
-popd
-```
-
-Then open a Pull Request to the [guix.sigs repository](https://github.com/stratum-mining/sv2-tp-guix.sigs).
+   See [Guix build options](../contrib/guix/README.md#building) for selecting
+   platforms, caches, and SDK paths.
+2. Run [guix-attest](../contrib/guix/README.md#attesting-to-build-outputs) with
+   `GUIX_SIGS_REPO_SV2_TP` set to the absolute path of the attestations clone
+   and `SIGNER` set to your signing identity. Commit and publish
+   `noncodesigned.SHA256SUMS` and its `.asc` signature under
+   `${VERSION}/${SIGNER}/` in that repository.
+3. Complete the codesigning steps below, then run `guix-attest` again. Commit
+   and publish the resulting `all.SHA256SUMS` and `.asc` signature.
+4. Run [guix-verify](../contrib/guix/README.md#verifying-build-output-attestations)
+   against the final manifests. One builder's signed attestations are sufficient
+   to release; additional independent matching builds are welcome. Compare
+   other builders' manifests when available, and investigate any discrepancies
+   before publishing.
 
 ## Codesigning
 
-### macOS codesigner only: Create detached macOS signatures (assuming [signapple](https://github.com/achow101/signapple/) is installed and up to date with master branch)
+The normal release artifacts are Linux binaries and signed, notarized macOS
+binaries. Windows is currently disabled in the Guix build and codesign scripts.
 
-In the `guix-build-${VERSION}/output/x86_64-apple-darwin` and `guix-build-${VERSION}/output/arm64-apple-darwin` directories:
+1. The macOS signer uses the `sv2-tp-${VERSION}-${HOST}-codesigning.tar.gz`
+   outputs for `x86_64-apple-darwin` and `arm64-apple-darwin` to create detached
+   signatures with signapple and complete notarization. In the maintainer's
+   local setup, switch to user `sjors` and run `~/dev/sign-apples.sh`.
+2. Publish the detached signatures in `sv2-tp-detached-sigs`. Record the exact
+   signature commit used for the release so builders can reproduce the signed
+   outputs.
+3. Builders check out that signature commit and run
+   [guix-codesign](../contrib/guix/README.md#codesigning-build-outputs), setting
+   `DETACHED_SIGS_REPO_SV2_TP` to the absolute path of the detached-signatures
+   clone. Use the final committed signatures for the outputs being attested.
+4. Extract the final macOS tarballs and check the code signatures and
+   notarization. Run `sv2-tp --version` from the extracted artifact on a
+   supported machine and confirm it reports the intended release version.
+   Also smoke-test a final Linux artifact on a supported machine.
 
-    tar xf bitcoin-${VERSION}-${ARCH}-apple-darwin-codesigning.tar.gz
-    ./detached-sig-create.sh /path/to/codesign.p12 /path/to/AuthKey_foo.p8 uuid
-    Enter the keychain password and authorize the signature
-    signature-osx.tar.gz will be created
+If Windows release builds are enabled in the future, add their zip artifacts
+and any applicable signing steps to this checklist at that time.
 
-### Windows codesigner only: Create detached Windows signatures
+## Publish
 
-In the `guix-build-${VERSION}/output/x86_64-w64-mingw32` directory:
-
-    tar xf bitcoin-${VERSION}-win64-codesigning.tar.gz
-    ./detached-sig-create.sh /path/to/codesign.key
-    Enter the passphrase for the key when prompted
-    signature-win.tar.gz will be created
-
-### Windows and macOS codesigners only: test code signatures
-It is advised to test that the code signature attaches properly prior to tagging by performing the `guix-codesign` step.
-However if this is done, once the release has been tagged in the bitcoin-detached-sigs repo, the `guix-codesign` step must be performed again in order for the guix attestation to be valid when compared against the attestations of non-codesigner builds. The directories created by `guix-codesign` will need to be cleared prior to running `guix-codesign` again.
-
-### Windows and macOS codesigners only: Commit the detached codesign payloads
-
-```sh
-pushd ./bitcoin-detached-sigs
-# checkout or create the appropriate branch for this release series
-git checkout --orphan <branch>
-# if you are the macOS codesigner
-rm -rf osx
-tar xf signature-osx.tar.gz
-# if you are the windows codesigner
-rm -rf win
-tar xf signature-win.tar.gz
-git add -A
-git commit -m "<version>: {osx,win} signature for {rc,final}"
-git tag -s "v${VERSION}" HEAD
-git push the current branch and new tag
-popd
-```
-
-### Non-codesigners: wait for Windows and macOS detached signatures
-
-- Once the Windows and macOS builds each have 3 matching signatures, they will be signed with their respective release keys.
-- Detached signatures will then be committed to the [sv2-tp-detached-sigs](https://github.com/stratum-mining/sv2-tp-detached-sigs) repository, which can be combined with the unsigned apps to create signed binaries.
-
-### Create the codesigned build outputs
-
-- [Codesigning build outputs](/contrib/guix/README.md#codesigning-build-outputs)
-
-### Verify other builders' signatures to your own (optional)
-
-- [Verifying build output attestations](/contrib/guix/README.md#verifying-build-output-attestations)
-
-### Commit your codesigned signature to guix.sigs (for the signed macOS/Windows binaries)
-
-```sh
-pushd ./guix.sigs
-git add "${VERSION}/${SIGNER}"/all.SHA256SUMS{,.asc}
-git commit -m "Add attestations by ${SIGNER} for ${VERSION} codesigned"
-popd
-```
-
-Then open a Pull Request to the [guix.sigs repository](https://github.com/stratum-mining/sv2-tp-guix.sigs).
-
-## After 1 or more people have guix-built and their results match
-
-After verifying signatures, combine the `all.SHA256SUMS.asc` file from all signers into `SHA256SUMS.asc`:
-
-```bash
-cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
-```
-
-
-- Upload to Github release:
-    1. The contents of each `./sv2-tp/guix-build-${VERSION}/output/${HOST}/` directory.
-
-       Guix will output all of the results into host subdirectories, but the SHA256SUMS
-       file does not include these subdirectories. In order for downloads via torrent
-       to verify without directory structure modification, all of the uploaded files
-       need to be in the same directory as the SHA256SUMS file.
-
-       Wait until all of these files have finished uploading before uploading the SHA256SUMS(.asc) files.
-
-    2. The `SHA256SUMS` file
-
-    3. The `SHA256SUMS.asc` combined signature file you just created.
-
-- Update repositories
-
-  - Delete post-EOL [release branches](https://github.com/stratum-mining/sv2-tp/branches/all) and create a tag `v${branch_name}-final`.
-
-  - Create a [new GitHub release](https://github.com/stratum-mining/sv2-tp/releases/new) using the release notes from the tag
-
-- Announce the release:
-
-  - SRI Discord
-
-  - bitcoin-dev mailing list
-
-  - Celebrate
-
+1. Create a draft [GitHub release](https://github.com/stratum-mining/sv2-tp/releases/new)
+   for the existing release tag. Use the release notes from that tag, including
+   supported Core versions, upgrade instructions, PR credits, and a link to the
+   release's attestations in `sv2-tp-guix.sigs`.
+2. Upload the intended final binaries from
+   `guix-build-${VERSION}/output/`, using the codesigned macOS outputs. Keep
+   artifact basenames unchanged and upload them without platform subdirectories.
+   Do not publish intermediate codesigning bundles as installable binaries.
+3. Publish a verified `all.SHA256SUMS` manifest as `SHA256SUMS`, together with
+   its detached signature as `SHA256SUMS.asc`. If combining signatures from
+   multiple builders, use only signatures over the identical manifest. Confirm
+   the uploaded binaries match its checksums and all intended assets are present.
+4. Publish the GitHub release. Announce it in SRI Discord and other relevant
+   channels as appropriate; a mailing-list announcement is not required for
+   every patch release.
