@@ -68,13 +68,13 @@ public:
      * @note unlike the submitblock RPC, this method does NOT add the
      *       coinbase witness automatically.
      *
-     * @returns true if the block was accepted as a new block
+     * @param[out] accepted true if accepted as a new block
      *
      * @note Bitcoin Core v31 does not have this method (mining.capnp @10) and
      *       throws when it is called. Use submitSolutionOld7() there, see
      *       Sv2TemplateProvider::DetectNodeVersion().
      */
-    virtual bool submitSolution(uint32_t version, uint32_t timestamp, uint32_t nonce, CTransactionRef coinbase, std::string& reason, std::string& debug) = 0;
+    virtual void submitSolution(uint32_t version, uint32_t timestamp, uint32_t nonce, CTransactionRef coinbase, std::string& reason, std::string& debug, bool& accepted) = 0;
 
     /**
      * Older version of submitSolution() (mining.capnp @7), as used by Bitcoin

@@ -670,12 +670,13 @@ void Sv2TemplateProvider::SubmitSolution(node::Sv2SubmitSolutionMsg solution)
                                                            solution.m_nonce,
                                                            coinbase_tx);
         } else {
-            submitted = block_template->submitSolution(solution.m_version,
+            block_template->submitSolution(solution.m_version,
                                                        solution.m_ntime,
                                                        solution.m_nonce,
                                                        coinbase_tx,
                                                        reason,
-                                                       debug);
+                                                       debug,
+                                                       submitted);
         }
 
         if (!submitted) {

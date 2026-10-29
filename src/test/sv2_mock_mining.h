@@ -85,7 +85,7 @@ public:
     std::vector<int64_t> getTxSigops() override;
     node::CoinbaseTx getCoinbaseTx() override;
     std::vector<uint256> getCoinbaseMerklePath() override;
-    bool submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef, std::string&, std::string&) override;
+    void submitSolution(uint32_t, uint32_t, uint32_t, CTransactionRef, std::string&, std::string&, bool&) override;
     bool submitSolutionOld7(uint32_t, uint32_t, uint32_t, CTransactionRef) override;
 
     std::unique_ptr<interfaces::BlockTemplate> waitNext(node::BlockWaitOptions options = {}) override;
