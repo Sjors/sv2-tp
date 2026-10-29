@@ -287,9 +287,10 @@ void Sv2TemplateProvider::ThreadSv2Handler()
         });
 
         // Join finished threads once connman has removed their client. A handler
-        // notices its client is gone when waitNext() returns. A thread whose client
-        // is still there is kept, or ForEachClient would start a new one.
+        // notices its client is gone when waitNext() returns.
         for (auto it = client_threads.begin(); it != client_threads.end();) {
+            // Handlers flag their client before setting done. Keep the client
+            // removal check as an extra safeguard against restarting a handler.
             if (it->second.done &&
                 !WITH_LOCK(m_connman->m_clients_mutex, return m_connman->GetClientById(it->first))) {
                 it->second.thread.join();
@@ -384,13 +385,11 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
                     // Break rather than rethrow, so the failure is logged once.
                     LogPrintLevel(BCLog::SV2, BCLog::Level::Error, "Could not create a template for client id=%zu, disconnecting: %s\n",
                                   client_id, e.what());
-                    disconnect_client();
                     break;
                 }
                 if (!block_template) {
                     LogPrintLevel(BCLog::SV2, BCLog::Level::Trace, "No new template for client id=%zu, node is shutting down\n",
                         client_id);
-                    disconnect_client();
                     break;
                 }
 
@@ -568,8 +567,8 @@ void Sv2TemplateProvider::ThreadSv2ClientHandler(size_t client_id)
         LogPrintLevel(BCLog::SV2, BCLog::Level::Debug,
                       "Client thread for id=%zu exiting after exception, disconnecting: %s\n",
                       client_id, e.what());
-        disconnect_client();
     }
+    disconnect_client();
 }
 
 void Sv2TemplateProvider::RequestTransactionData(Sv2Client& client, node::Sv2RequestTransactionDataMsg msg)
