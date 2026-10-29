@@ -183,7 +183,7 @@ std::string Sv2SymmetricState::GetChainingKey()
 
 void Sv2SymmetricState::LogChainingKey()
 {
-    LogTrace(BCLog::SV2, "Chaining key: %s\n", GetChainingKey());
+    LogTraceUnsafe(BCLog::SV2, "Chaining key: %s\n", GetChainingKey());
 }
 
 void Sv2SymmetricState::HKDF2(const std::span<const std::byte> input_key_material, NoiseHash& out0, NoiseHash& out1)
@@ -340,7 +340,7 @@ void Sv2HandshakeState::WriteMsgES(std::span<std::byte> msg)
     ECDHSecret ecdh_static_secret{m_static_key.ComputeBIP324ECDHSecret(m_remote_ephemeral_ellswift_pk,
                                                                        m_static_ellswift_pk,
                                                                        /*initiating=*/false)};
-    LogTrace(BCLog::SV2, "ECDH result: %s\n", HexStr(ecdh_static_secret));
+    LogTraceUnsafe(BCLog::SV2, "ECDH result: %s\n", HexStr(ecdh_static_secret));
 
     LogTrace(BCLog::SV2, "Mix key with ECDH result: static ours -- remote ephemeral\n");
     m_symmetric_state.MixKey(ecdh_static_secret);
@@ -402,7 +402,7 @@ bool Sv2HandshakeState::ReadMsgES(std::span<std::byte> msg)
     ECDHSecret ecdh_static_secret{m_ephemeral_key.ComputeBIP324ECDHSecret(m_remote_static_ellswift_pk,
                                                                           m_ephemeral_ellswift_pk,
                                                                           /*initiating=*/true)};
-    LogTrace(BCLog::SV2, "ECDH result: %s\n", HexStr(ecdh_static_secret));
+    LogTraceUnsafe(BCLog::SV2, "ECDH result: %s\n", HexStr(ecdh_static_secret));
 
     LogTrace(BCLog::SV2, "Mix key with ECDH result: ephemeral ours -- remote static\n");
     m_symmetric_state.MixKey(ecdh_static_secret);

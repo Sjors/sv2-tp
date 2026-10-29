@@ -215,6 +215,8 @@ Setting `-sv2maxconnections=0` disables the connection limit.
 
 Use `-debug=sv2` to see Stratum v2 related log messages. Set `-loglevel=sv2:trace`
 to see which messages are exchanged with the Job Declarator client.
+`-loglevel=sv2:trace-unsafe` additionally logs the Noise handshake secrets, which
+allow decrypting the connection. Only use it to debug a Noise implementation.
 
 Fee-based template updates are rate-limited by `-templateinterval` (default: 5
 seconds). New blocks always propagate immediately. Templates are only sent to
