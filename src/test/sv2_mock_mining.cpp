@@ -57,7 +57,11 @@ MockBlockTemplate::MockBlockTemplate(std::shared_ptr<MockState> st, uint256 prev
 }
 
 CBlockHeader MockBlockTemplate::getBlockHeader() { return block.GetBlockHeader(); }
-CBlock MockBlockTemplate::getBlock() { return block; }
+CBlock MockBlockTemplate::getBlock()
+{
+    LOCK(state->m);
+    return state->get_block_override.value_or(block);
+}
 std::vector<CAmount> MockBlockTemplate::getTxFees()
 {
     // The real interface exposes fees per transaction. Tests only need the

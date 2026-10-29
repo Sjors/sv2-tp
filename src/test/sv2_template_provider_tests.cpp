@@ -1,13 +1,16 @@
 #include <boost/test/unit_test.hpp>
 #include <consensus/consensus.h>
+#include <common/args.h>
 #include <interfaces/init.h>
 #include <interfaces/mining.h>
 #include <ipc/exception.h>
+#include <streams.h>
 #include <sv2/block_options.h>
 #include <sv2/messages.h>
 #include <test/sv2_test_setup.h>
 #include <test/util/net.h>
 #include <util/sock.h>
+#include <util/readwritefile.h>
 #include <util/strencodings.h>
 // Synchronization primitives (Mutex/LOCK)
 #include <sync.h>
@@ -326,6 +329,47 @@ BOOST_AUTO_TEST_CASE(submit_solution_interface_version)
         // Let the sv2-saveblk thread finish, it uses the IPC connection.
         UninterruptibleSleep(std::chrono::milliseconds{1000});
 
+        tester.m_mining_control->Shutdown();
+    }
+}
+
+// Diagnostic files must preserve the complete block, including witness data,
+// after either an accepted or rejected submission.
+BOOST_AUTO_TEST_CASE(save_getblock)
+{
+    fs::create_directories(gArgs.GetDataDirNet());
+    for (const bool rejected : {false, true}) {
+        TPTester tester{Sv2TemplateProviderOptions{.is_test = true}};
+        tester.handshake();
+        tester.SendSetupConnection();
+        tester.SendCoinbaseOutputConstraints();
+        const uint64_t id = tester.ReceiveTemplatePair();
+        CBlock block;
+        block.nVersion = 4;
+        block.nNonce = rejected;
+        CMutableTransaction coinbase{*MakeDummyTx()};
+        coinbase.vin[0].scriptWitness.stack.emplace_back(32, 0x42);
+        block.vtx.push_back(MakeTransactionRef(coinbase));
+        std::vector<unsigned char> payload;
+        VectorWriter writer{payload, 0};
+        writer << TX_WITH_WITNESS(block);
+        {
+            LOCK(tester.m_state->m);
+            tester.m_state->get_block_override = block;
+        }
+        tester.m_state->reject_solution = rejected;
+        const auto path = gArgs.GetDataDirNet() / fs::PathFromString(block.GetHash().ToString() + ".dat");
+        Sv2LogCapture logs;
+        node::Sv2SubmitSolutionMsg solution{};
+        solution.m_template_id = id;
+        solution.m_version = 1;
+        solution.m_coinbase_tx = coinbase;
+        tester.m_tp->SubmitSolution(solution);
+        // The worker logs after closing the completed file.
+        BOOST_REQUIRE(logs.WaitFor("Wrote block " + block.GetHash().ToString()));
+        const auto [saved, bytes] = ReadBinaryFile(path);
+        BOOST_REQUIRE(saved);
+        BOOST_CHECK(bytes == std::string(reinterpret_cast<const char*>(payload.data()), payload.size()));
         tester.m_mining_control->Shutdown();
     }
 }
